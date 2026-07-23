@@ -53,3 +53,9 @@ Proyek ini menggunakan package `kungfufafa/mekaya-theme`. Tema ini dimuat di [Ad
 Untuk memastikan aset terkompilasi dengan benar, pastikan file berikut terdaftar di input [vite.config.js](vite.config.js):
 - `vendor/kungfufafa/mekaya-theme/resources/css/theme.css`
 - `vendor/kungfufafa/mekaya-theme/resources/js/mekaya.js`
+
+<!-- 
+👑 Akun Superadmin
+Email: admin@ontime.com
+Password: password
+-->

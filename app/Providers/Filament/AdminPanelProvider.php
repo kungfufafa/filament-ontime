@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use Apriansyahrs\MekayaTheme\MekayaPlugin;
+use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -29,7 +30,11 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
-            ->plugin(MekayaPlugin::make())
+            ->databaseNotifications()
+            ->plugins([
+                MekayaPlugin::make(),
+                FilamentShieldPlugin::make(),
+            ])
             ->colors([
                 'primary' => Color::Amber,
             ])
