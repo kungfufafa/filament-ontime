@@ -3,126 +3,229 @@
     previewUrl: null,
     uploading: false,
     cameraActive: false,
+    cameraError: null,
+    facingMode: 'user',
+    stream: null,
+    isMirrored: true,
+
     initCamera() {
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 480 }, height: { ideal: 480 }, facingMode: 'user' } })
-                .then((s) => {
-                    $refs.video.srcObject = s;
-                    this.cameraActive = true;
-                })
-                .catch((err) => {
-                    console.error('Akses kamera gagal:', err);
-                });
+        this.cameraError = null;
+        this.stopCamera();
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            this.cameraError = 'Browser Anda tidak mendukung akses kamera (perlu HTTPS atau Localhost).';
+            return;
         }
-    },
-    takeSnapshot() {
-        this.uploading = true;
-        const video = $refs.video;
-        const canvas = $refs.canvas;
-        const context = canvas.getContext('2d');
-        
-        canvas.width = 300;
-        canvas.height = 300;
-        
-        const minDim = Math.min(video.videoWidth || 480, video.videoHeight || 480);
-        const sx = ((video.videoWidth || 480) - minDim) / 2;
-        const sy = ((video.videoHeight || 480) - minDim) / 2;
 
-        context.drawImage(video, sx, sy, minDim, minDim, 0, 0, 300, 300);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
-
-        fetch('{{ route('upload.selfie') }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: this.facingMode,
+                width: { ideal: 640 },
+                height: { ideal: 640 }
             },
-            body: JSON.stringify({ photo_base64: dataUrl })
+            audio: false
         })
-        .then(res => res.text())
-        .then(text => {
-            this.uploading = false;
-            try {
-                const jsonStart = text.indexOf('{');
-                const jsonEnd = text.lastIndexOf('}');
-                if (jsonStart !== -1 && jsonEnd !== -1) {
-                    const data = JSON.parse(text.substring(jsonStart, jsonEnd + 1));
-                    if (data.success) {
-                        this.previewUrl = data.url;
-                        this.photoPath = data.path;
-                        $wire.set('{{ $getStatePath() }}', data.path);
-                    } else {
-                        alert('Gagal mengunggah foto selfie: ' + (data.message || 'Unknown error'));
-                    }
-                } else {
-                    console.error('Response server bukan JSON:', text);
-                    alert('Terjadi kendala pada server saat menyimpan foto.');
+        .then((s) => {
+            this.stream = s;
+            this.cameraActive = true;
+            this.$nextTick(() => {
+                if (this.$refs.video) {
+                    this.$refs.video.srcObject = s;
+                    this.$refs.video.play().catch(() => {});
                 }
-            } catch (e) {
-                console.error('JSON Parse Error:', e, text);
-                alert('Gagal memproses respon server.');
-            }
+            });
         })
-        .catch(err => {
-            this.uploading = false;
-            console.error('Error uploading photo:', err);
-            alert('Terjadi kesalahan koneksi saat menyimpan foto.');
+        .catch((err) => {
+            console.error('Akses kamera gagal:', err);
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                this.cameraError = 'Izin kamera ditolak. Silakan izinkan akses kamera di browser.';
+            } else {
+                this.cameraError = 'Gagal membuka kamera: ' + (err.message || 'Error tidak diketahui');
+            }
+            this.cameraActive = false;
         });
     },
+
+    stopCamera() {
+        if (this.stream) {
+            this.stream.getTracks().forEach(track => track.stop());
+            this.stream = null;
+        }
+        if (this.$refs.video) {
+            this.$refs.video.srcObject = null;
+        }
+        this.cameraActive = false;
+    },
+
+    toggleCamera() {
+        this.facingMode = (this.facingMode === 'user') ? 'environment' : 'user';
+        this.isMirrored = (this.facingMode === 'user');
+        this.initCamera();
+    },
+
+    takeSnapshot() {
+        if (!this.$refs.video || !this.cameraActive) return;
+
+        this.uploading = true;
+        const video = this.$refs.video;
+        const canvas = this.$refs.canvas;
+        const context = canvas.getContext('2d');
+
+        const size = 360;
+        canvas.width = size;
+        canvas.height = size;
+
+        const vW = video.videoWidth || 640;
+        const vH = video.videoHeight || 480;
+        const minDim = Math.min(vW, vH);
+        const sx = (vW - minDim) / 2;
+        const sy = (vH - minDim) / 2;
+
+        context.save();
+        if (this.isMirrored) {
+            context.translate(size, 0);
+            context.scale(-1, 1);
+        }
+
+        context.drawImage(video, sx, sy, minDim, minDim, 0, 0, size, size);
+        context.restore();
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+        const csrfToken = document.querySelector('meta[name=\'csrf-token\']')?.getAttribute('content') || '{{ csrf_token() }}';
+
+        const sendRequest = (body) => {
+            fetch('{{ route('upload.selfie') }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
+                },
+                credentials: 'same-origin',
+                body: body
+            })
+            .then(async (res) => {
+                this.uploading = false;
+                const text = await res.text();
+                let data = null;
+
+                try {
+                    const start = text.indexOf('{');
+                    const end = text.lastIndexOf('}');
+                    if (start !== -1 && end !== -1) {
+                        data = JSON.parse(text.substring(start, end + 1));
+                    }
+                } catch (e) {
+                    console.error('JSON Parsing Error:', e, text);
+                }
+
+                if (data && data.success) {
+                    this.previewUrl = data.url;
+                    this.photoPath = data.path;
+                    $wire.set('{{ $getStatePath() }}', data.path);
+                    this.stopCamera();
+                } else {
+                    const errMsg = data?.message || (text.length > 0 ? text.substring(0, 150) : ('HTTP Status ' + res.status));
+                    alert('Gagal menyimpan foto: ' + errMsg);
+                }
+            })
+            .catch((err) => {
+                this.uploading = false;
+                console.error('Upload error:', err);
+                alert('Terjadi kesalahan koneksi saat mengunggah foto.');
+            });
+        };
+
+        if (canvas.toBlob) {
+            canvas.toBlob((blob) => {
+                const formData = new FormData();
+                if (blob) {
+                    formData.append('photo', blob, 'selfie.jpg');
+                }
+                formData.append('photo_base64', dataUrl);
+                sendRequest(formData);
+            }, 'image/jpeg', 0.75);
+        } else {
+            const formData = new FormData();
+            formData.append('photo_base64', dataUrl);
+            sendRequest(formData);
+        }
+    },
+
     resetPhoto() {
         this.previewUrl = null;
         this.photoPath = null;
         $wire.set('{{ $getStatePath() }}', null);
+        this.$nextTick(() => {
+            this.initCamera();
+        });
     }
-}" x-init="initCamera()" class="space-y-3">
-    
-    <label class="block text-sm font-semibold text-gray-900 dark:text-white">
-        Foto Selfie Absensi Kamera <span class="text-red-500">*</span>
-    </label>
+}"
+x-init="initCamera()"
+x-on:unmount="stopCamera()"
+class="space-y-3">
 
-    <!-- Canvas (Hidden) -->
+    <!-- Canvas Hidden -->
     <canvas x-ref="canvas" class="hidden"></canvas>
 
-    <!-- Preview Output Foto (Jika Sudah Diambil & Diupload) -->
+    <!-- Preview Foto jika sudah diambil -->
     <template x-if="photoPath">
-        <div class="relative rounded-xl overflow-hidden border-2 border-emerald-500 bg-black">
-            <img :src="previewUrl || ('/storage/' + photoPath)" class="w-full max-h-64 object-contain mx-auto" />
-            <div class="p-2 bg-emerald-600 text-white text-xs font-bold text-center flex items-center justify-between">
-                <span>✓ Foto Selfie Tersimpan Permanen</span>
-                <button type="button" @click="resetPhoto()" class="px-2 py-1 bg-white text-emerald-800 rounded hover:bg-gray-100 transition">
-                    Ulangi Foto
-                </button>
+        <div class="space-y-2 text-center">
+            <div class="relative w-48 h-48 mx-auto rounded-lg overflow-hidden border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
+                <img :src="previewUrl || ('/storage/' + photoPath)" class="w-full h-full object-cover" />
             </div>
+            <div class="flex items-center justify-center gap-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                <span>Foto selfie berhasil disimpan</span>
+            </div>
+            <button type="button" @click="resetPhoto()" class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                Ambil Ulang Foto
+            </button>
         </div>
     </template>
 
-    <!-- Live WebCam Video (Jika Foto Belum Diambil) -->
+    <!-- Display Live Kamera jika belum ambil foto -->
     <template x-if="!photoPath">
-        <div class="space-y-3">
-            <div class="relative rounded-xl overflow-hidden bg-black border border-gray-300 dark:border-gray-700 aspect-video flex items-center justify-center">
-                <video x-ref="video" autoplay playsinline class="w-full h-full object-cover"></video>
-                
+        <div class="space-y-2">
+            <div class="relative w-full aspect-video sm:aspect-square max-w-xs mx-auto rounded-lg overflow-hidden bg-black border border-gray-300 dark:border-gray-700 flex items-center justify-center">
+                <video x-ref="video" autoplay playsinline muted :class="{ '-scale-x-100': isMirrored }" class="w-full h-full object-cover"></video>
+
+                <!-- Pesan Kamera Belum Aktif / Error -->
                 <template x-if="!cameraActive">
-                    <div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center text-gray-400 bg-gray-900/90">
-                        <svg class="w-10 h-10 mb-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h0.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                        <p class="text-xs">Mohon izinkan akses kamera di browser Anda untuk melakukan selfie.</p>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center text-gray-400 bg-gray-900/90 space-y-2">
+                        <template x-if="!cameraError">
+                            <p class="text-xs">Membuka kamera...</p>
+                        </template>
+                        <template x-if="cameraError">
+                            <div class="space-y-2">
+                                <p class="text-xs text-red-400" x-text="cameraError"></p>
+                                <button type="button" @click="initCamera()" class="px-2.5 py-1 text-xs bg-gray-800 text-white rounded border border-gray-700 hover:bg-gray-700">
+                                    Coba Lagi
+                                </button>
+                            </div>
+                        </template>
                     </div>
                 </template>
 
+                <!-- Indicator Loading Upload -->
                 <template x-if="uploading">
-                    <div class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center text-white bg-black/80">
-                        <span class="animate-spin text-2xl mb-1">⏳</span>
-                        <p class="text-xs font-bold">Mengunggah Foto Selfie...</p>
+                    <div class="absolute inset-0 flex items-center justify-center bg-black/75 text-white text-xs font-semibold gap-2">
+                        <svg class="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        <span>Mengunggah foto...</span>
                     </div>
                 </template>
             </div>
 
-            <!-- Tombol Ambil Foto Selfie -->
+            <!-- Action Buttons -->
             <template x-if="cameraActive && !uploading">
-                <button type="button" @click="takeSnapshot()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm transition flex items-center justify-center gap-2 shadow-sm">
-                    <span>📸 Ambil Foto Selfie Kamera</span>
-                </button>
+                <div class="flex items-center justify-center gap-2 max-w-xs mx-auto">
+                    <button type="button" @click="takeSnapshot()" class="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg text-xs transition flex items-center justify-center gap-1.5 shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h0.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        <span>Ambil Foto</span>
+                    </button>
+                    <button type="button" @click="toggleCamera()" class="py-2 px-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-lg text-xs transition border border-gray-300 dark:border-gray-600">
+                        Ganti Kamera
+                    </button>
+                </div>
             </template>
         </div>
     </template>

@@ -54,7 +54,7 @@
                         <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
                             <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Jam Check-In</span>
                             <div class="mt-2 text-2xl font-black text-gray-900 dark:text-white">
-                                {{ $attendance?->check_in ? $attendance->check_in->format('H:i:s') : '--:--:--' }}
+                                {{ $attendance?->check_in ? $attendance->check_in->format('H:i:s') . ' WIB' : '--:--:--' }}
                             </div>
                             @if($attendance?->status)
                                 <div class="mt-2">
@@ -74,7 +74,7 @@
                         <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
                             <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Jam Check-Out</span>
                             <div class="mt-2 text-2xl font-black text-gray-900 dark:text-white">
-                                {{ $attendance?->check_out ? $attendance->check_out->format('H:i:s') : '--:--:--' }}
+                                {{ $attendance?->check_out ? $attendance->check_out->format('H:i:s') . ' WIB' : '--:--:--' }}
                             </div>
                         </div>
                     </div>

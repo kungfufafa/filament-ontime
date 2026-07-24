@@ -151,7 +151,7 @@ class AbsenHariIni extends Page
 
                 Notification::make()
                     ->title('Check In Berhasil!')
-                    ->body("Waktu Check In: {$now->format('H:i:s')} (".($status === 'late' ? "Terlambat {$lateMinutes} menit" : 'Tepat Waktu').')')
+                    ->body("Waktu Check In: {$now->format('H:i:s')} WIB (".($status === 'late' ? "Terlambat {$lateMinutes} menit" : 'Tepat Waktu').')')
                     ->success()
                     ->send();
             });
@@ -237,7 +237,7 @@ class AbsenHariIni extends Page
 
                 Notification::make()
                     ->title('Check Out Berhasil!')
-                    ->body("Waktu Check Out: {$now->format('H:i:s')}")
+                    ->body("Waktu Check Out: {$now->format('H:i:s')} WIB")
                     ->success()
                     ->send();
             });
