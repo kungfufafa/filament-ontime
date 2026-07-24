@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -75,6 +76,13 @@ class Division extends Model
         }
 
         return $ids;
+    }
+
+    public function descendantsAndSelf(): Collection
+    {
+        $ids = array_merge([$this->id], $this->getAllChildrenIds());
+
+        return static::whereIn('id', $ids)->get();
     }
 
     public function company(): BelongsTo

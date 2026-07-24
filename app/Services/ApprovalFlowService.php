@@ -53,12 +53,6 @@ class ApprovalFlowService
             ]);
         }
 
-        if (! $this->isStandardApprovalFlow($flows)) {
-            throw ValidationException::withMessages([
-                'approval_flow' => 'Alur approval harus terdiri dari tahap 1 (Approver), tahap 2 (BOD), dan tahap 3 (Superadmin).',
-            ]);
-        }
-
         $generatedSteps = [];
 
         foreach ($flows as $flow) {

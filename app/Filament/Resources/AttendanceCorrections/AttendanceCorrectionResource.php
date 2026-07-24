@@ -134,11 +134,17 @@ class AttendanceCorrectionResource extends Resource
                                 ->default(today()),
 
                             TimePicker::make('corrected_check_in')
-                                ->label('Usulan Jam Check In')
+                                ->label('Usulan Jam Check In (24 Jam)')
+                                ->native(false)
+                                ->displayFormat('H:i')
+                                ->format('H:i')
                                 ->seconds(false),
 
                             TimePicker::make('corrected_check_out')
-                                ->label('Usulan Jam Check Out')
+                                ->label('Usulan Jam Check Out (24 Jam)')
+                                ->native(false)
+                                ->displayFormat('H:i')
+                                ->format('H:i')
                                 ->seconds(false),
 
                             FileUpload::make('attachment')
@@ -181,23 +187,6 @@ class AttendanceCorrectionResource extends Resource
                     ->time('H:i')
                     ->placeholder('-'),
 
-                TextColumn::make('current_step')
-                    ->label('Progres Approval')
-                    ->formatStateUsing(function (AttendanceCorrection $record) {
-                        $max = $record->approvalSteps()->max('step_order') ?? 1;
-                        $currentStepModel = $record->approvalSteps()->where('step_order', $record->current_step)->first();
-                        $stepName = $currentStepModel?->step_name ?? 'Selesai';
-
-                        if ($record->status === 'approved') {
-                            return '✅ Disetujui Final';
-                        }
-                        if ($record->status === 'rejected') {
-                            return '❌ Ditolak';
-                        }
-
-                        return "Tahap {$record->current_step} dari {$max} ({$stepName})";
-                    }),
-
                 BadgeColumn::make('status')
                     ->label('Status Request')
                     ->colors([
@@ -215,7 +204,6 @@ class AttendanceCorrectionResource extends Resource
             ->actions([
                 Action::make('lacakProgres')
                     ->label('Lacak Progres')
-                    ->icon('heroicon-o-eye')
                     ->color('info')
                     ->visible(fn (AttendanceCorrection $record): bool => auth()->user()?->canTrackApprovalProgressFor($record->employee) ?? false)
                     ->modalHeading('Progres Approval Transparan')
@@ -228,8 +216,8 @@ class AttendanceCorrectionResource extends Resource
 
                         foreach ($steps as $step) {
                             $statusLabel = match ($step->status) {
-                                'approved' => '✅ Disetujui',
-                                'rejected' => '❌ Ditolak',
+                                'approved' => 'Disetujui',
+                                'rejected' => 'Ditolak',
                                 'pending' => ($step->step_order == $record->current_step && $record->status === 'pending')
                                     ? ' Menunggu Persetujuan (Tahap Aktif)'
                                     : ' Belum Dimulai',

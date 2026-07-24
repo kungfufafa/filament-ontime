@@ -9,6 +9,7 @@ use App\Models\Approver;
 use App\Models\OvertimeRequest;
 use App\Services\ApprovalFlowService;
 use BackedEnum;
+use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -22,6 +23,8 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -122,6 +125,30 @@ class OvertimeRequestResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
+        $calculateDuration = function (Get $get, Set $set) {
+            $start = $get('start_time');
+            $end = $get('end_time');
+
+            if (! empty($start) && ! empty($end)) {
+                try {
+                    $startFormatted = substr((string) $start, 0, 5);
+                    $endFormatted = substr((string) $end, 0, 5);
+
+                    $startTime = Carbon::createFromFormat('H:i', $startFormatted);
+                    $endTime = Carbon::createFromFormat('H:i', $endFormatted);
+
+                    if ($endTime->lessThanOrEqualTo($startTime)) {
+                        $endTime->addDay();
+                    }
+
+                    $diffMinutes = (int) $startTime->diffInMinutes($endTime);
+                    $set('duration_minutes', $diffMinutes);
+                } catch (\Throwable $e) {
+                    // Ignore parsing failures
+                }
+            }
+        };
+
         return $schema
             ->components([
                 Section::make('Form Pengajuan Lembur')
@@ -134,19 +161,30 @@ class OvertimeRequestResource extends Resource
                                 ->default(today()),
 
                             TimePicker::make('start_time')
-                                ->label('Jam Mulai Lembur')
+                                ->label('Jam Mulai Lembur (24 Jam)')
+                                ->native(false)
+                                ->displayFormat('H:i')
+                                ->format('H:i')
                                 ->seconds(false)
-                                ->required(),
+                                ->required()
+                                ->live()
+                                ->afterStateUpdated($calculateDuration),
 
                             TimePicker::make('end_time')
-                                ->label('Jam Selesai Lembur')
+                                ->label('Jam Selesai Lembur (24 Jam)')
+                                ->native(false)
+                                ->displayFormat('H:i')
+                                ->format('H:i')
                                 ->seconds(false)
-                                ->required(),
+                                ->required()
+                                ->live()
+                                ->afterStateUpdated($calculateDuration),
 
                             TextInput::make('duration_minutes')
                                 ->label('Estimasi Durasi (Menit)')
                                 ->numeric()
-                                ->placeholder('Contoh: 120 untuk 2 jam')
+                                ->placeholder('Otomatis terhitung dari jam mulai & selesai')
+                                ->helperText(fn (Get $get): ?string => $get('duration_minutes') ? 'Setara dengan '.round(((int) $get('duration_minutes')) / 60, 1).' jam' : null)
                                 ->required(),
 
                             TextInput::make('actual_duration_minutes')
@@ -208,23 +246,6 @@ class OvertimeRequestResource extends Resource
                     })
                     ->color(fn ($state, OvertimeRequest $record) => ($state && $state > $record->duration_minutes) ? 'warning' : 'currentColor'),
 
-                TextColumn::make('current_step')
-                    ->label('Progres Approval')
-                    ->formatStateUsing(function (OvertimeRequest $record) {
-                        $max = $record->approvalSteps()->max('step_order') ?? 1;
-                        $currentStepModel = $record->approvalSteps()->where('step_order', $record->current_step)->first();
-                        $stepName = $currentStepModel?->step_name ?? 'Selesai';
-
-                        if ($record->status === 'approved') {
-                            return '✅ Disetujui Final';
-                        }
-                        if ($record->status === 'rejected') {
-                            return '❌ Ditolak';
-                        }
-
-                        return "Tahap {$record->current_step} dari {$max} ({$stepName})";
-                    }),
-
                 BadgeColumn::make('status')
                     ->label('Status Request')
                     ->colors([
@@ -242,7 +263,6 @@ class OvertimeRequestResource extends Resource
             ->actions([
                 Action::make('lacakProgres')
                     ->label('Lacak Progres')
-                    ->icon('heroicon-o-eye')
                     ->color('info')
                     ->visible(fn (OvertimeRequest $record): bool => auth()->user()?->canTrackApprovalProgressFor($record->employee) ?? false)
                     ->modalHeading('Progres Approval Transparan')
@@ -255,8 +275,8 @@ class OvertimeRequestResource extends Resource
 
                         foreach ($steps as $step) {
                             $statusLabel = match ($step->status) {
-                                'approved' => '✅ Disetujui',
-                                'rejected' => '❌ Ditolak',
+                                'approved' => 'Disetujui',
+                                'rejected' => 'Ditolak',
                                 'pending' => ($step->step_order == $record->current_step && $record->status === 'pending')
                                     ? ' Menunggu Persetujuan (Tahap Aktif)'
                                     : ' Belum Dimulai',

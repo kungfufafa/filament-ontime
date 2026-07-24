@@ -49,13 +49,24 @@
                                     <p><strong>Alasan:</strong> {{ $item->reason }}</p>
                                 </div>
                             </div>
-                            <div class="mt-4 pt-3 border-t dark:border-gray-800 flex items-center justify-end gap-2">
-                                <button type="button" wire:click="rejectRequest('leave', {{ $item->id }})" class="px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950 border border-red-200 rounded-lg">
+                            <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end gap-2">
+                                <x-filament::button
+                                    wire:click="rejectRequest('leave', {{ $item->id }})"
+                                    color="danger"
+                                    outlined
+                                    size="sm"
+                                    icon="heroicon-m-x-mark">
                                     Tolak
-                                </button>
-                                <button type="button" wire:click="approveRequest('leave', {{ $item->id }})" class="px-4 py-1.5 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg">
+                                </x-filament::button>
+
+                                <x-filament::button
+                                    wire:click="approveRequest('leave', {{ $item->id }})"
+                                    color="success"
+                                    outlined
+                                    size="sm"
+                                    icon="heroicon-m-check">
                                     Setujui
-                                </button>
+                                </x-filament::button>
                             </div>
                         </div>
                     @endforeach
@@ -89,13 +100,24 @@
                                     <p><strong>Tugas:</strong> {{ $item->reason }}</p>
                                 </div>
                             </div>
-                            <div class="mt-4 pt-3 border-t dark:border-gray-800 flex items-center justify-end gap-2">
-                                <button type="button" wire:click="rejectRequest('overtime', {{ $item->id }})" class="px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950 border border-red-200 rounded-lg">
+                            <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end gap-2">
+                                <x-filament::button
+                                    wire:click="rejectRequest('overtime', {{ $item->id }})"
+                                    color="danger"
+                                    outlined
+                                    size="sm"
+                                    icon="heroicon-m-x-mark">
                                     Tolak
-                                </button>
-                                <button type="button" wire:click="approveRequest('overtime', {{ $item->id }})" class="px-4 py-1.5 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg">
+                                </x-filament::button>
+
+                                <x-filament::button
+                                    wire:click="approveRequest('overtime', {{ $item->id }})"
+                                    color="success"
+                                    outlined
+                                    size="sm"
+                                    icon="heroicon-m-check">
                                     Setujui
-                                </button>
+                                </x-filament::button>
                             </div>
                         </div>
                     @endforeach
@@ -129,13 +151,24 @@
                                     <p><strong>Alasan:</strong> {{ $item->reason }}</p>
                                 </div>
                             </div>
-                            <div class="mt-4 pt-3 border-t dark:border-gray-800 flex items-center justify-end gap-2">
-                                <button type="button" wire:click="rejectRequest('correction', {{ $item->id }})" class="px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950 border border-red-200 rounded-lg">
+                            <div class="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end gap-2">
+                                <x-filament::button
+                                    wire:click="rejectRequest('correction', {{ $item->id }})"
+                                    color="danger"
+                                    outlined
+                                    size="sm"
+                                    icon="heroicon-m-x-mark">
                                     Tolak
-                                </button>
-                                <button type="button" wire:click="approveRequest('correction', {{ $item->id }})" class="px-4 py-1.5 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg">
+                                </x-filament::button>
+
+                                <x-filament::button
+                                    wire:click="approveRequest('correction', {{ $item->id }})"
+                                    color="success"
+                                    outlined
+                                    size="sm"
+                                    icon="heroicon-m-check">
                                     Setujui
-                                </button>
+                                </x-filament::button>
                             </div>
                         </div>
                     @endforeach

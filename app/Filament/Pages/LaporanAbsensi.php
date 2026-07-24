@@ -85,11 +85,13 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
                         Grid::make(4)->schema([
                             DatePicker::make('date_from')
                                 ->label('Dari Tanggal')
-                                ->required(),
+                                ->required()
+                                ->live(),
 
                             DatePicker::make('date_to')
                                 ->label('Sampai Tanggal')
-                                ->required(),
+                                ->required()
+                                ->live(),
 
                             Select::make('company_id')
                                 ->label('Badan Usaha')

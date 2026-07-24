@@ -76,9 +76,10 @@ class DivisionResource extends Resource
                                         $query->whereNotIn('id', $excludedIds);
                                     }
 
-                                    $divisions = $query->get()->toTree();
+                                    $allDivisions = $query->with('children')->get();
+                                    $topDivisions = $allDivisions->whereNull('parent_id');
 
-                                    return static::formatTreeOptions($divisions);
+                                    return static::formatTreeOptions($topDivisions);
                                 })
                                 ->rule(fn (?Division $record) => new ValidDivisionParent($record?->id)),
 

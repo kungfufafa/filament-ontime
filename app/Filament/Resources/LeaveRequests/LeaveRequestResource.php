@@ -22,6 +22,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -124,7 +125,11 @@ class LeaveRequestResource extends Resource
     {
         return $schema
             ->components([
-                Section::make('Form Pengajuan Cuti / Izin')
+                Section::make(fn (Get $get): string => match ($get('leave_type')) {
+                    'permission' => 'Form Pengajuan Izin Tidak Masuk',
+                    'sick' => 'Form Pengajuan Sakit',
+                    default => 'Form Pengajuan Cuti Tahunan',
+                })
                     ->description('Pilih jenis pengajuan, tentukan rentang tanggal, dan isi alasan pendukung.')
                     ->schema([
                         Grid::make(2)->schema([
@@ -135,25 +140,43 @@ class LeaveRequestResource extends Resource
                                     'permission' => 'Izin Tidak Masuk',
                                     'sick' => 'Sakit (Dengan/Tanpa Surat Dokter)',
                                 ])
-                                ->required(),
+                                ->default('annual_leave')
+                                ->required()
+                                ->live(),
 
                             DatePicker::make('start_date')
-                                ->label('Tanggal Mulai Cuti')
+                                ->label(fn (Get $get): string => match ($get('leave_type')) {
+                                    'permission' => 'Tanggal Mulai Izin',
+                                    'sick' => 'Tanggal Mulai Sakit',
+                                    default => 'Tanggal Mulai Cuti',
+                                })
                                 ->required()
                                 ->default(today()),
 
                             DatePicker::make('end_date')
-                                ->label('Tanggal Selesai Cuti')
+                                ->label(fn (Get $get): string => match ($get('leave_type')) {
+                                    'permission' => 'Tanggal Selesai Izin',
+                                    'sick' => 'Tanggal Selesai Sakit',
+                                    default => 'Tanggal Selesai Cuti',
+                                })
                                 ->required()
                                 ->default(today()),
 
                             FileUpload::make('attachment')
-                                ->label('Dokumen / Surat Dokter (Opsional)')
+                                ->label(fn (Get $get): string => match ($get('leave_type')) {
+                                    'sick' => 'Surat Keterangan Dokter (Disarankan)',
+                                    'permission' => 'Dokumen Pendukung Izin (Opsional)',
+                                    default => 'Dokumen Pendukung Cuti (Opsional)',
+                                })
                                 ->directory('leave-attachments')
                                 ->columnSpanFull(),
 
                             Textarea::make('reason')
-                                ->label('Alasan / Keterangan')
+                                ->label(fn (Get $get): string => match ($get('leave_type')) {
+                                    'permission' => 'Alasan / Keterangan Izin',
+                                    'sick' => 'Keterangan Sakit / Gejala',
+                                    default => 'Alasan / Keterangan Cuti',
+                                })
                                 ->required()
                                 ->columnSpanFull(),
                         ]),
@@ -200,23 +223,6 @@ class LeaveRequestResource extends Resource
                     ->label('Durasi')
                     ->formatStateUsing(fn ($state) => "{$state} Hari"),
 
-                TextColumn::make('current_step')
-                    ->label('Progres Approval')
-                    ->formatStateUsing(function (LeaveRequest $record) {
-                        $max = $record->approvalSteps()->max('step_order') ?? 1;
-                        $currentStepModel = $record->approvalSteps()->where('step_order', $record->current_step)->first();
-                        $stepName = $currentStepModel?->step_name ?? 'Selesai';
-
-                        if ($record->status === 'approved') {
-                            return '✅ Disetujui Final';
-                        }
-                        if ($record->status === 'rejected') {
-                            return '❌ Ditolak';
-                        }
-
-                        return "Tahap {$record->current_step} dari {$max} ({$stepName})";
-                    }),
-
                 BadgeColumn::make('status')
                     ->label('Status Request')
                     ->colors([
@@ -234,7 +240,6 @@ class LeaveRequestResource extends Resource
             ->actions([
                 Action::make('lacakProgres')
                     ->label('Lacak Progres')
-                    ->icon('heroicon-o-eye')
                     ->color('info')
                     ->visible(fn (LeaveRequest $record): bool => auth()->user()?->canTrackApprovalProgressFor($record->employee) ?? false)
                     ->modalHeading('Progres Approval Transparan')
@@ -247,8 +252,8 @@ class LeaveRequestResource extends Resource
 
                         foreach ($steps as $step) {
                             $statusLabel = match ($step->status) {
-                                'approved' => '✅ Disetujui',
-                                'rejected' => '❌ Ditolak',
+                                'approved' => 'Disetujui',
+                                'rejected' => 'Ditolak',
                                 'pending' => ($step->step_order == $record->current_step && $record->status === 'pending')
                                     ? ' Menunggu Persetujuan (Tahap Aktif)'
                                     : ' Belum Dimulai',

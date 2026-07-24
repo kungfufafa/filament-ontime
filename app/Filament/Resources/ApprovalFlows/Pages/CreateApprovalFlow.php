@@ -40,35 +40,22 @@ class CreateApprovalFlow extends CreateRecord
 
     private function validateSteps(array $steps, string $label): void
     {
-        if (count($steps) !== 3) {
+        if (count($steps) < 1) {
             throw ValidationException::withMessages([
-                'steps' => "Alur {$label} wajib memiliki tiga tahap: Approver, BOD, lalu Superadmin.",
+                'steps' => "Alur {$label} wajib memiliki minimal 1 tahap approval.",
             ]);
         }
-
-        $orders = array_map(fn ($step) => (int) $step['step_order'], $steps);
-        sort($orders, SORT_NUMERIC);
-
-        if (count($orders) !== count(array_unique($orders))) {
-            throw ValidationException::withMessages([
-                'steps' => "Urutan tahap (step_order) pada {$label} tidak boleh ada yang duplikat.",
-            ]);
-        }
-
-        $expected = [1, 2, 3];
-        if ($orders !== $expected) {
-            throw ValidationException::withMessages([
-                'steps' => "Urutan tahap pada {$label} harus 1 (Approver), 2 (BOD), lalu 3 (Superadmin).",
-            ]);
-        }
-
-        usort($steps, fn (array $first, array $second): int => $first['step_order'] <=> $second['step_order']);
-        $expectedRoles = ['Approver', 'BOD', 'Superadmin'];
 
         foreach ($steps as $index => $step) {
-            if (($step['approver_type'] ?? null) !== 'role' || ($step['approver_role'] ?? null) !== $expectedRoles[$index]) {
+            $approverType = $step['approver_type'] ?? 'role';
+            if ($approverType === 'role' && empty($step['approver_role'])) {
                 throw ValidationException::withMessages([
-                    'steps' => 'Tahap '.($index + 1)." pada {$label} wajib ditangani oleh {$expectedRoles[$index]}.",
+                    'steps' => 'Tahap '.($index + 1)." pada {$label} wajib memilih Role Approver.",
+                ]);
+            }
+            if ($approverType === 'user' && empty($step['user_id'])) {
+                throw ValidationException::withMessages([
+                    'steps' => 'Tahap '.($index + 1)." pada {$label} wajib memilih User Spesifik.",
                 ]);
             }
         }
@@ -76,15 +63,17 @@ class CreateApprovalFlow extends CreateRecord
 
     private function insertSteps(int $companyId, string $requestType, array $steps): void
     {
-        foreach ($steps as $index => $step) {
-            $stepOrder = (int) ($step['step_order'] ?? ($index + 1));
+        usort($steps, fn (array $first, array $second): int => ((int) ($first['step_order'] ?? 0)) <=> ((int) ($second['step_order'] ?? 0)));
+
+        foreach (array_values($steps) as $index => $step) {
+            $stepOrder = $index + 1;
 
             ApprovalFlow::create([
                 'company_id' => $companyId,
                 'request_type' => $requestType,
                 'step_number' => $stepOrder,
                 'step_order' => $stepOrder,
-                'name' => $step['name'] ?? "Tahap {$stepOrder}",
+                'name' => ! empty($step['name']) ? $step['name'] : "Tahap {$stepOrder}",
                 'approver_type' => $step['approver_type'] ?? 'role',
                 'approver_role' => ($step['approver_type'] ?? 'role') === 'role' ? ($step['approver_role'] ?? 'Approver') : null,
                 'user_id' => ($step['approver_type'] ?? 'role') === 'user' ? ($step['user_id'] ?? null) : null,

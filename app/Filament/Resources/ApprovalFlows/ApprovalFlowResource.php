@@ -93,14 +93,6 @@ class ApprovalFlowResource extends Resource
             ->label("Tahap Approval {$label}")
             ->schema([
                 Grid::make(2)->schema([
-                    TextInput::make('step_order')
-                        ->label('Urutan Tahap (Step Order)')
-                        ->placeholder('Contoh: 1, 2, 3')
-                        ->numeric()
-                        ->minValue(1)
-                        ->required()
-                        ->default(1),
-
                     TextInput::make('name')
                         ->label('Nama Tahap / Label')
                         ->placeholder('Contoh: Manager Direct / HR Review')
@@ -128,7 +120,7 @@ class ApprovalFlowResource extends Resource
                         ->label('Pilih User Spesifik')
                         ->options(function () {
                             return User::query()
-                                ->whereHas('roles', fn ($q) => $q->where('name', 'Approver'))
+                                ->whereHas('roles', fn ($q) => $q->whereIn('name', ['Approver', 'BOD', 'Superadmin']))
                                 ->pluck('name', 'id');
                         })
                         ->searchable()
@@ -136,31 +128,30 @@ class ApprovalFlowResource extends Resource
                         ->required(fn (Get $get) => $get('approver_type') === 'user'),
                 ]),
             ])
-            ->itemLabel(fn (array $state): ?string => isset($state['step_order']) ? "Tahap {$state['step_order']}: ".($state['name'] ?? '') : null)
+            ->itemLabel(fn (array $state): ?string => $state['name'] ?? null)
             ->collapsible()
             ->default([
                 [
-                    'step_order' => 1,
                     'name' => 'Persetujuan Approver',
                     'approver_type' => 'role',
                     'approver_role' => 'Approver',
                 ],
                 [
-                    'step_order' => 2,
                     'name' => 'Persetujuan BOD',
                     'approver_type' => 'role',
                     'approver_role' => 'BOD',
                 ],
                 [
-                    'step_order' => 3,
                     'name' => 'Persetujuan Akhir Superadmin',
                     'approver_type' => 'role',
                     'approver_role' => 'Superadmin',
                 ],
             ])
-            ->minItems(3)
-            ->maxItems(3)
-            ->reorderable(false);
+            ->minItems(1)
+            ->validationMessages([
+                'min' => 'Setiap jenis alur (Cuti, Lembur, Koreksi) wajib memiliki minimal 1 tahap approval.',
+            ])
+            ->reorderable(true);
     }
 
     public static function table(Table $table): Table
