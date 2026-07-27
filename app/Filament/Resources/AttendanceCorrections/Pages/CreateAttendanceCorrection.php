@@ -15,14 +15,23 @@ class CreateAttendanceCorrection extends CreateRecord
     {
         $user = auth()->user();
         $employee = $user?->employee;
+        $intern = $user?->intern;
+        $freelancer = $user?->freelancer;
 
-        if (! $user?->hasAnyRole(['Employee', 'BOD']) || ! $employee) {
+        if (! $employee && ! $intern && ! $freelancer) {
             throw ValidationException::withMessages([
-                'date' => 'Akun pengguna Anda belum terhubung ke data Employee Karyawan.',
+                'date' => 'Akun pengguna Anda belum terhubung ke data profil Karyawan/Magang.',
             ]);
         }
 
-        $data['employee_id'] = $employee->id;
+        if ($employee) {
+            $data['employee_id'] = $employee->id;
+        } elseif ($intern) {
+            $data['intern_id'] = $intern->id;
+        } elseif ($freelancer) {
+            $data['freelancer_id'] = $freelancer->id;
+        }
+
         $data['status'] = 'pending';
 
         return $data;

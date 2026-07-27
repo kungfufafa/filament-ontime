@@ -51,12 +51,35 @@ class OvertimeRequestResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return ! (auth()->user()?->hasRole('Superadmin') ?? false);
+        $user = auth()->user();
+
+        if ($user?->intern !== null) {
+            return false;
+        }
+
+        return ! ($user?->hasRole('Superadmin') ?? false);
+    }
+
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+
+        if ($user?->intern !== null) {
+            return false;
+        }
+
+        return true;
     }
 
     public static function canCreate(): bool
     {
-        return auth()->user()?->hasAnyRole(['Employee', 'BOD']) ?? false;
+        $user = auth()->user();
+
+        if ($user?->intern !== null) {
+            return false;
+        }
+
+        return $user?->hasAnyRole(['Employee', 'BOD']) ?? false;
     }
 
     public static function canEdit(Model $record): bool

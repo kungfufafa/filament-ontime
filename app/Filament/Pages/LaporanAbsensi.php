@@ -42,7 +42,7 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
 
     protected static string|UnitEnum|null $navigationGroup = 'Presensi & Pengajuan';
 
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 3;
 
     protected string $view = 'filament.pages.laporan-absensi';
 

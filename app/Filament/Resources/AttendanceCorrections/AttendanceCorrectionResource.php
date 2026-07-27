@@ -8,6 +8,7 @@ use App\Filament\Resources\AttendanceCorrections\Pages\ListAttendanceCorrections
 use App\Models\Approver;
 use App\Models\AttendanceCorrection;
 use App\Services\ApprovalFlowService;
+use App\Services\FileNamingService;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -28,6 +29,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use UnitEnum;
 
 class AttendanceCorrectionResource extends Resource
@@ -44,7 +46,7 @@ class AttendanceCorrectionResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Presensi & Pengajuan';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 2;
 
     public static function shouldRegisterNavigation(): bool
     {
@@ -53,7 +55,9 @@ class AttendanceCorrectionResource extends Resource
 
     public static function canCreate(): bool
     {
-        return auth()->user()?->hasAnyRole(['Employee', 'BOD']) ?? false;
+        $user = auth()->user();
+
+        return (bool) ($user?->employee || $user?->intern || $user?->freelancer || $user?->hasRole('BOD'));
     }
 
     public static function canEdit(Model $record): bool
@@ -85,6 +89,8 @@ class AttendanceCorrectionResource extends Resource
         }
 
         $employee = $user->employee;
+        $intern = $user->intern;
+        $freelancer = $user->freelancer;
         $isApprover = $user->hasAnyRole(['Approver', 'BOD']);
 
         if ($isApprover) {
@@ -98,8 +104,8 @@ class AttendanceCorrectionResource extends Resource
                 ->pluck('company_id')
                 ->toArray();
 
-            return $query->whereHas('employee', function ($q) use ($divisionIds, $companyIds, $employee) {
-                $q->where(function ($sub) use ($divisionIds, $companyIds, $employee) {
+            return $query->where(function ($q) use ($divisionIds, $companyIds, $employee) {
+                $q->whereHas('employee', function ($sub) use ($divisionIds, $companyIds, $employee) {
                     if (! empty($divisionIds)) {
                         $sub->whereIn('division_id', $divisionIds);
                     }
@@ -115,6 +121,14 @@ class AttendanceCorrectionResource extends Resource
 
         if ($employee) {
             return $query->where('employee_id', $employee->id);
+        }
+
+        if ($intern) {
+            return $query->where('intern_id', $intern->id);
+        }
+
+        if ($freelancer) {
+            return $query->where('freelancer_id', $freelancer->id);
         }
 
         return $query->whereRaw('1 = 0');
@@ -152,6 +166,11 @@ class AttendanceCorrectionResource extends Resource
                                 ->directory('correction-attachments')
                                 ->disk('s3')
                                 ->visibility('public')
+                                ->getUploadedFileNameForStorageUsing(function (TemporaryUploadedFile $file): string {
+                                    $employeeCode = auth()->user()?->employee?->employee_code ?? auth()->id();
+
+                                    return FileNamingService::generateFileName('CORR', (string) $employeeCode, $file);
+                                })
                                 ->columnSpanFull(),
 
                             Textarea::make('reason')

@@ -8,6 +8,7 @@ use App\Http\Requests\Api\V1\UpdateLeaveRequest;
 use App\Http\Resources\Api\V1\LeaveRequestResource;
 use App\Models\LeaveRequest;
 use App\Services\ApprovalFlowService;
+use App\Services\FileNamingService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -67,7 +68,14 @@ class LeaveRequestApiController extends Controller
 
         $attachmentPath = null;
         if ($request->hasFile('attachment')) {
-            $attachmentPath = $request->file('attachment')->store('leave-requests/attachments', 'public');
+            $identifier = $employee->employee_code ?? (string) $employee->id;
+            $attachmentPath = FileNamingService::storeUploadedFile(
+                $request->file('attachment'),
+                'leave-requests/attachments',
+                'LEAVE',
+                $identifier,
+                'public'
+            );
         }
 
         $leaveRequest = LeaveRequest::create([
@@ -110,7 +118,14 @@ class LeaveRequestApiController extends Controller
         $data = $request->only(['leave_type', 'start_date', 'end_date', 'reason']);
 
         if ($request->hasFile('attachment')) {
-            $data['attachment'] = $request->file('attachment')->store('leave-requests/attachments', 'public');
+            $identifier = $employee->employee_code ?? (string) $employee->id;
+            $data['attachment'] = FileNamingService::storeUploadedFile(
+                $request->file('attachment'),
+                'leave-requests/attachments',
+                'LEAVE',
+                $identifier,
+                'public'
+            );
         }
 
         if (isset($data['start_date']) || isset($data['end_date'])) {

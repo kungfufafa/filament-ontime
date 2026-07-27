@@ -25,6 +25,8 @@ class DatabaseSeeder extends Seeder
         $bodRole = Role::firstOrCreate(['name' => 'BOD']);
         $approverRole = Role::firstOrCreate(['name' => 'Approver']);
         $employeeRole = Role::firstOrCreate(['name' => 'Employee']);
+        $internRole = Role::firstOrCreate(['name' => 'Intern']);
+        $freelancerRole = Role::firstOrCreate(['name' => 'Freelancer']);
 
         // 2. Global Superadmin Account
         $superAdminUser = User::firstOrCreate(
@@ -145,7 +147,7 @@ class DatabaseSeeder extends Seeder
                     ]
                 );
                 $internUser->update(['phone' => $data['phone']]);
-                $internUser->assignRole($employeeRole);
+                $internUser->syncRoles([$internRole]);
 
                 Intern::updateOrCreate(
                     ['nis' => $data['nis']],
@@ -175,7 +177,7 @@ class DatabaseSeeder extends Seeder
                 ]
             );
             $freelancerUser->update(['phone' => '6289876543210']);
-            $freelancerUser->assignRole($employeeRole);
+            $freelancerUser->syncRoles([$freelancerRole]);
 
             Freelancer::firstOrCreate(
                 ['freelancer_number' => 'FL-2026-001'],

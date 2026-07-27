@@ -30,6 +30,17 @@ class KalenderCuti extends Page implements HasForms
 
     protected string $view = 'filament.pages.kalender-cuti';
 
+    public static function canAccess(): bool
+    {
+        $user = auth()->user();
+
+        if ($user?->intern !== null) {
+            return false;
+        }
+
+        return true;
+    }
+
     public ?int $selectedMonth = null;
 
     public ?int $selectedYear = null;

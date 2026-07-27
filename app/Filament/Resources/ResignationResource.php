@@ -40,6 +40,28 @@ class ResignationResource extends Resource
 
     protected static ?int $navigationSort = 5;
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        $user = auth()->user();
+
+        if ($user?->intern !== null) {
+            return false;
+        }
+
+        return parent::shouldRegisterNavigation();
+    }
+
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+
+        if ($user?->intern !== null) {
+            return false;
+        }
+
+        return parent::canViewAny();
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema

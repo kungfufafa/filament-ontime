@@ -45,7 +45,7 @@ class EditIntern extends EditRecord
                         'password' => Hash::make('password123'),
                     ]);
 
-                    if ($role = Role::where('name', 'Employee')->first()) {
+                    if ($role = Role::firstOrCreate(['name' => 'Intern'])) {
                         $user->assignRole($role);
                     }
 

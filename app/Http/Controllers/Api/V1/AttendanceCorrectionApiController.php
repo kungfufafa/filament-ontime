@@ -8,6 +8,7 @@ use App\Http\Requests\Api\V1\UpdateAttendanceCorrectionRequest;
 use App\Http\Resources\Api\V1\AttendanceCorrectionResource;
 use App\Models\AttendanceCorrection;
 use App\Services\ApprovalFlowService;
+use App\Services\FileNamingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -43,7 +44,14 @@ class AttendanceCorrectionApiController extends Controller
 
         $attachmentPath = null;
         if ($request->hasFile('attachment')) {
-            $attachmentPath = $request->file('attachment')->store('attendance-corrections/attachments', 'public');
+            $identifier = $employee->employee_code ?? (string) $employee->id;
+            $attachmentPath = FileNamingService::storeUploadedFile(
+                $request->file('attachment'),
+                'attendance-corrections/attachments',
+                'CORR',
+                $identifier,
+                'public'
+            );
         }
 
         $correction = AttendanceCorrection::create([
@@ -85,7 +93,14 @@ class AttendanceCorrectionApiController extends Controller
         $data = $request->only(['date', 'corrected_check_in', 'corrected_check_out', 'reason']);
 
         if ($request->hasFile('attachment')) {
-            $data['attachment'] = $request->file('attachment')->store('attendance-corrections/attachments', 'public');
+            $identifier = $employee->employee_code ?? (string) $employee->id;
+            $data['attachment'] = FileNamingService::storeUploadedFile(
+                $request->file('attachment'),
+                'attendance-corrections/attachments',
+                'CORR',
+                $identifier,
+                'public'
+            );
         }
 
         $correction->update($data);

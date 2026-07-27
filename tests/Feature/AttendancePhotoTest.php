@@ -13,6 +13,7 @@ class AttendancePhotoTest extends TestCase
 
     public function test_can_upload_selfie_photo_base64(): void
     {
+        Storage::fake('s3');
         Storage::fake('public');
 
         $user = User::factory()->create();
@@ -30,6 +31,6 @@ class AttendancePhotoTest extends TestCase
 
         $path = $response->json('path');
         $this->assertNotNull($path);
-        Storage::disk('public')->assertExists($path);
+        Storage::disk('s3')->assertExists($path);
     }
 }

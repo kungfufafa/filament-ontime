@@ -291,7 +291,7 @@ class InternResource extends Resource
                             'password' => Hash::make($data['password']),
                         ]);
 
-                        if ($role = Role::where('name', 'Employee')->first()) {
+                        if ($role = Role::firstOrCreate(['name' => 'Intern'])) {
                             $user->assignRole($role);
                         }
 

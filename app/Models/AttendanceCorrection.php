@@ -13,6 +13,8 @@ class AttendanceCorrection extends Model
 
     protected $fillable = [
         'employee_id',
+        'intern_id',
+        'freelancer_id',
         'attendance_id',
         'date',
         'corrected_check_in',
@@ -39,6 +41,16 @@ class AttendanceCorrection extends Model
         return $this->belongsTo(Employee::class);
     }
 
+    public function intern(): BelongsTo
+    {
+        return $this->belongsTo(Intern::class);
+    }
+
+    public function freelancer(): BelongsTo
+    {
+        return $this->belongsTo(Freelancer::class);
+    }
+
     public function attendance(): BelongsTo
     {
         return $this->belongsTo(Attendance::class);
@@ -51,10 +63,16 @@ class AttendanceCorrection extends Model
 
     public function applyCorrection(): void
     {
-        $attendance = Attendance::firstOrNew([
-            'employee_id' => $this->employee_id,
-            'date' => $this->date,
-        ]);
+        $search = ['date' => $this->date];
+        if ($this->employee_id) {
+            $search['employee_id'] = $this->employee_id;
+        } elseif ($this->intern_id) {
+            $search['intern_id'] = $this->intern_id;
+        } elseif ($this->freelancer_id) {
+            $search['freelancer_id'] = $this->freelancer_id;
+        }
+
+        $attendance = Attendance::firstOrNew($search);
 
         if ($this->corrected_check_in) {
             $attendance->check_in = $this->corrected_check_in;

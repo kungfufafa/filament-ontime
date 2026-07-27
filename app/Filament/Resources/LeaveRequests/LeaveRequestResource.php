@@ -8,6 +8,7 @@ use App\Filament\Resources\LeaveRequests\Pages\ListLeaveRequests;
 use App\Models\Approver;
 use App\Models\LeaveRequest;
 use App\Services\ApprovalFlowService;
+use App\Services\FileNamingService;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -29,6 +30,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use UnitEnum;
 
 class LeaveRequestResource extends Resource
@@ -49,12 +51,35 @@ class LeaveRequestResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return ! (auth()->user()?->hasRole('Superadmin') ?? false);
+        $user = auth()->user();
+
+        if ($user?->intern !== null) {
+            return false;
+        }
+
+        return ! ($user?->hasRole('Superadmin') ?? false);
+    }
+
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+
+        if ($user?->intern !== null) {
+            return false;
+        }
+
+        return true;
     }
 
     public static function canCreate(): bool
     {
-        return auth()->user()?->hasAnyRole(['Employee', 'BOD']) ?? false;
+        $user = auth()->user();
+
+        if ($user?->intern !== null) {
+            return false;
+        }
+
+        return $user?->hasAnyRole(['Employee', 'BOD']) ?? false;
     }
 
     public static function canEdit(Model $record): bool
@@ -171,6 +196,11 @@ class LeaveRequestResource extends Resource
                                 ->directory('leave-attachments')
                                 ->disk('s3')
                                 ->visibility('public')
+                                ->getUploadedFileNameForStorageUsing(function (TemporaryUploadedFile $file): string {
+                                    $employeeCode = auth()->user()?->employee?->employee_code ?? auth()->id();
+
+                                    return FileNamingService::generateFileName('LEAVE', (string) $employeeCode, $file);
+                                })
                                 ->columnSpanFull(),
 
                             Textarea::make('reason')

@@ -7,6 +7,7 @@ use App\Http\Requests\Api\V1\CheckInRequest;
 use App\Http\Requests\Api\V1\CheckOutRequest;
 use App\Http\Resources\Api\V1\AttendanceResource;
 use App\Models\Attendance;
+use App\Services\FileNamingService;
 use App\Services\GeofenceService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -69,7 +70,14 @@ class AttendanceApiController extends Controller
 
         $photoPath = null;
         if ($request->hasFile('photo')) {
-            $photoPath = $request->file('photo')->store('attendance/photos', 'public');
+            $identifier = $profile->employee_code ?? $profile->nik ?? (string) ($profile->id ?? $user->id);
+            $photoPath = FileNamingService::storeUploadedFile(
+                $request->file('photo'),
+                'attendance/photos',
+                'ATT_IN',
+                $identifier,
+                'public'
+            );
         }
 
         $now = now();
@@ -169,7 +177,14 @@ class AttendanceApiController extends Controller
 
         $photoPath = null;
         if ($request->hasFile('photo')) {
-            $photoPath = $request->file('photo')->store('attendance/photos', 'public');
+            $identifier = $profile->employee_code ?? $profile->nik ?? (string) ($profile->id ?? $user->id);
+            $photoPath = FileNamingService::storeUploadedFile(
+                $request->file('photo'),
+                'attendance/photos',
+                'ATT_OUT',
+                $identifier,
+                'public'
+            );
         }
 
         $attendance->update([
