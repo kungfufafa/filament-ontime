@@ -18,8 +18,8 @@ class PhoneLoginTest extends TestCase
     public function test_phone_login_page_can_be_rendered(): void
     {
         config([
-            'services.gateway_hub.url' => 'http://gateway-hub.test/send',
-            'services.gateway_hub.enabled' => true,
+            'services.wag.url' => 'http://gateway-hub.test/send',
+            'services.wag.enabled' => true,
         ]);
         $response = $this->get('/phone-login');
         $response->assertStatus(200);
@@ -28,8 +28,8 @@ class PhoneLoginTest extends TestCase
     public function test_phone_login_returns_404_when_gateway_url_is_empty(): void
     {
         config([
-            'services.gateway_hub.url' => null,
-            'services.gateway_hub.enabled' => false,
+            'services.wag.url' => null,
+            'services.wag.enabled' => false,
         ]);
         $response = $this->get('/phone-login');
         $response->assertStatus(404);
@@ -38,8 +38,8 @@ class PhoneLoginTest extends TestCase
     public function test_otp_can_be_requested_for_valid_user(): void
     {
         config([
-            'services.gateway_hub.url' => 'http://gateway-hub.test/send',
-            'services.gateway_hub.enabled' => true,
+            'services.wag.url' => 'http://gateway-hub.test/send',
+            'services.wag.enabled' => true,
         ]);
         Http::fake([
             'http://gateway-hub.test/*' => Http::response(['status' => true, 'message' => 'Sent'], 200),
@@ -69,8 +69,8 @@ class PhoneLoginTest extends TestCase
     public function test_invalid_phone_number_shows_error(): void
     {
         config([
-            'services.gateway_hub.url' => 'http://gateway-hub.test/send',
-            'services.gateway_hub.enabled' => true,
+            'services.wag.url' => 'http://gateway-hub.test/send',
+            'services.wag.enabled' => true,
         ]);
         Http::fake();
 
@@ -88,8 +88,8 @@ class PhoneLoginTest extends TestCase
     public function test_user_can_login_with_valid_otp(): void
     {
         config([
-            'services.gateway_hub.url' => 'http://gateway-hub.test/send',
-            'services.gateway_hub.enabled' => true,
+            'services.wag.url' => 'http://gateway-hub.test/send',
+            'services.wag.enabled' => true,
         ]);
         Http::fake([
             'http://gateway-hub.test/*' => Http::response(['status' => true], 200),
@@ -124,8 +124,8 @@ class PhoneLoginTest extends TestCase
     public function test_invalid_otp_fails_authentication(): void
     {
         config([
-            'services.gateway_hub.url' => 'http://gateway-hub.test/send',
-            'services.gateway_hub.enabled' => true,
+            'services.wag.url' => 'http://gateway-hub.test/send',
+            'services.wag.enabled' => true,
         ]);
         Http::fake([
             'http://gateway-hub.test/*' => Http::response(['status' => true], 200),

@@ -1,4 +1,4 @@
-@if (config('services.gateway_hub.enabled'))
+@if (config('services.wag.enabled'))
     <div class="mt-0 space-y-6">
         <div class="relative flex items-center justify-center">
             <div class="flex-grow border-t border-gray-200 dark:border-gray-700/80"></div>

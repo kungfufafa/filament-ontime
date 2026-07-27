@@ -35,7 +35,7 @@ class PhoneLogin extends SimplePage
 
     public function mount(): void
     {
-        if (! config('services.gateway_hub.enabled')) {
+        if (! config('services.wag.enabled')) {
             abort(404, 'Fitur login WhatsApp belum diaktifkan.');
         }
 

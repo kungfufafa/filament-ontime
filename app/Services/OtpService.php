@@ -13,7 +13,7 @@ class OtpService
     ) {}
 
     /**
-     * Request OTP for a given phone number and send it via Gateway Hub.
+     * Request OTP for a given phone number and send it via WAG (WhatsApp Gateway).
      */
     public function requestOtp(string $phone): array
     {

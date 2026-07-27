@@ -14,8 +14,8 @@ class WhatsAppGatewayService
 
     public function __construct()
     {
-        $this->url = config('services.gateway_hub.url', 'http://gateway-hub.test/send');
-        $this->apiKey = config('services.gateway_hub.api_key');
+        $this->url = config('services.wag.url', 'http://wag.test/send');
+        $this->apiKey = config('services.wag.api_key');
     }
 
     /**
@@ -37,13 +37,13 @@ class WhatsAppGatewayService
     }
 
     /**
-     * Send WhatsApp message via Gateway Hub service
+     * Send WhatsApp message via WAG (WhatsApp Gateway) service
      */
     public function sendMessage(string $phone, string $message): bool
     {
         $target = $this->normalizePhoneNumber($phone);
 
-        // 1. Try Gateway Hub API v1 endpoint if available or if domain matches
+        // 1. Try WAG API v1 endpoint if available or if domain matches
         $v1Url = $this->getV1ApiUrl($this->url);
         if ($v1Url) {
             $success = $this->sendMessageV1($v1Url, $target, $message);
@@ -67,8 +67,8 @@ class WhatsAppGatewayService
             return null;
         }
 
-        // If local mock or test endpoint like gateway-hub.test, do not auto-convert to v1 unless requested
-        if (str_contains($parsed['host'], 'gateway-hub.test') || str_contains($baseUrl, 'localhost')) {
+        // If local mock or test endpoint like wag.test, do not auto-convert to v1 unless requested
+        if (str_contains($parsed['host'], 'wag.test') || str_contains($parsed['host'], 'gateway-hub.test') || str_contains($baseUrl, 'localhost')) {
             return null;
         }
 
@@ -113,14 +113,14 @@ class WhatsAppGatewayService
                 ->post($v1Url, $payload);
 
             if ($response->successful()) {
-                Log::info("WhatsApp OTP sent successfully via Gateway Hub v1 to {$target}");
+                Log::info("WhatsApp OTP sent successfully via WAG v1 to {$target}");
 
                 return true;
             }
 
-            Log::warning("Gateway Hub v1 returned HTTP {$response->status()}: {$response->body()}");
+            Log::warning("WAG v1 returned HTTP {$response->status()}: {$response->body()}");
         } catch (\Throwable $e) {
-            Log::error("Exception in Gateway Hub v1 send to {$target}: {$e->getMessage()}");
+            Log::error("Exception in WAG v1 send to {$target}: {$e->getMessage()}");
         }
 
         return false;

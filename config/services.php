@@ -35,10 +35,10 @@ return [
         ],
     ],
 
-    'gateway_hub' => [
-        'enabled' => ! empty(env('GATEWAY_HUB_URL')),
-        'url' => env('GATEWAY_HUB_URL'),
-        'api_key' => env('GATEWAY_HUB_API_KEY'),
+    'wag' => [
+        'enabled' => ! empty(env('WAG_URL')),
+        'url' => env('WAG_URL'),
+        'api_key' => env('WAG_API_KEY'),
     ],
 
 ];

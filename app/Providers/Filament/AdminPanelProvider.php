@@ -36,7 +36,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->renderHook(
                 PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
-                fn (): string => config('services.gateway_hub.enabled')
+                fn (): string => config('services.wag.enabled')
                     ? view('filament.auth.whatsapp-button')->render()
                     : '',
             )
