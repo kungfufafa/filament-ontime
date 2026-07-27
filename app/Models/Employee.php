@@ -76,4 +76,14 @@ class Employee extends Model
     {
         return $this->hasMany(AttendanceCorrection::class);
     }
+
+    public function mentoredInterns(): HasMany
+    {
+        return $this->hasMany(Intern::class, 'mentor_id');
+    }
+
+    public function supervisedFreelancers(): HasMany
+    {
+        return $this->hasMany(Freelancer::class, 'supervisor_id');
+    }
 }

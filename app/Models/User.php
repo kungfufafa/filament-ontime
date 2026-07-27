@@ -38,6 +38,16 @@ class User extends Authenticatable
         return $this->hasOne(Employee::class);
     }
 
+    public function intern(): HasOne
+    {
+        return $this->hasOne(Intern::class);
+    }
+
+    public function freelancer(): HasOne
+    {
+        return $this->hasOne(Freelancer::class);
+    }
+
     public function approvers(): HasMany
     {
         return $this->hasMany(Approver::class);
