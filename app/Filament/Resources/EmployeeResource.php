@@ -116,7 +116,6 @@ class EmployeeResource extends Resource
                                 ->options([
                                     'active' => 'Aktif',
                                     'inactive' => 'Non-Aktif',
-                                    'resigned' => 'Resign',
                                 ])
                                 ->default('active')
                                 ->required(),
@@ -168,14 +167,12 @@ class EmployeeResource extends Resource
                     ->label('Status')
                     ->colors([
                         'success' => 'active',
-                        'warning' => 'inactive',
-                        'danger' => 'resigned',
+                        'danger' => 'inactive',
                     ])
                     ->formatStateUsing(fn (string $state) => match ($state) {
                         'active' => 'Aktif',
                         'inactive' => 'Non-Aktif',
-                        'resigned' => 'Resign',
-                        default => $state,
+                        default => ucfirst($state),
                     }),
             ])
             ->filters([
@@ -196,7 +193,6 @@ class EmployeeResource extends Resource
                     ->options([
                         'active' => 'Aktif',
                         'inactive' => 'Non-Aktif',
-                        'resigned' => 'Resign',
                     ]),
             ])
             ->actions([

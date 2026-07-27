@@ -197,6 +197,10 @@ class ApprovalFlowService
             if (method_exists($requestModel, 'applyLeave')) {
                 $requestModel->applyLeave();
             }
+
+            if (method_exists($requestModel, 'applyResignation')) {
+                $requestModel->applyResignation();
+            }
         }
     }
 
