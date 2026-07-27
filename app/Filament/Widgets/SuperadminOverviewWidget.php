@@ -2,6 +2,9 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Pages\ApprovalSaya;
+use App\Filament\Pages\LaporanAbsensi;
+use App\Filament\Resources\CompanyResource;
 use App\Models\Attendance;
 use App\Models\AttendanceCorrection;
 use App\Models\Company;
@@ -46,17 +49,20 @@ class SuperadminOverviewWidget extends BaseWidget
             Stat::make('Perusahaan Aktif', "{$totalCompanies} Badan Usaha")
                 ->description('Total perusahaan terdaftar dalam sistem')
                 ->color('primary')
-                ->icon('heroicon-o-building-office-2'),
+                ->icon('heroicon-o-building-office-2')
+                ->url(CompanyResource::getUrl('index')),
 
             Stat::make('Hadir Hari Ini', "{$presentCount} Karyawan")
                 ->description("Telat: {$lateCount} | Cuti/Izin: {$leaveCount}")
                 ->color('success')
-                ->icon('heroicon-o-user-group'),
+                ->icon('heroicon-o-user-group')
+                ->url(LaporanAbsensi::getUrl()),
 
             Stat::make('Pending Approval Lintas Company', "{$totalPending} Pengajuan")
                 ->description("Cuti: {$pendingLeaves} | Lembur: {$pendingOvertimes} | Koreksi: {$pendingCorrections}")
                 ->color($totalPending > 0 ? 'warning' : 'gray')
-                ->icon('heroicon-o-inbox-stack'),
+                ->icon('heroicon-o-inbox-stack')
+                ->url(ApprovalSaya::getUrl()),
         ];
     }
 }

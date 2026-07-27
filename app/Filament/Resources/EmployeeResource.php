@@ -38,9 +38,9 @@ class EmployeeResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-users';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Master Data';
+    protected static string|UnitEnum|null $navigationGroup = 'Manajemen SDM';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 1;
 
     public static function canViewAny(): bool
     {
@@ -85,6 +85,8 @@ class EmployeeResource extends Resource
                                         ->where('is_active', true)
                                         ->pluck('name', 'id');
                                 })
+                                ->live()
+                                ->afterStateUpdated(fn ($set) => $set('job_title_id', null))
                                 ->required(),
 
                             Select::make('job_level_id')
@@ -94,7 +96,18 @@ class EmployeeResource extends Resource
 
                             Select::make('job_title_id')
                                 ->label('Posisi / Job Title')
-                                ->options(JobTitle::query()->pluck('name', 'id'))
+                                ->options(function (Get $get) {
+                                    $divisionId = $get('division_id');
+                                    if (! $divisionId) {
+                                        return JobTitle::query()->pluck('name', 'id');
+                                    }
+
+                                    return JobTitle::query()
+                                        ->where('division_id', $divisionId)
+                                        ->orWhereNull('division_id')
+                                        ->pluck('name', 'id');
+                                })
+                                ->searchable()
                                 ->required(),
 
                             TextInput::make('email')
@@ -173,6 +186,29 @@ class EmployeeResource extends Resource
                         'active' => 'Aktif',
                         'inactive' => 'Non-Aktif',
                         default => ucfirst($state),
+                    }),
+
+                TextColumn::make('offboarding_status')
+                    ->label('Pengunduran Diri')
+                    ->state(function (Employee $record) {
+                        $latest = $record->resignations()->latest()->first();
+                        if (! $latest) {
+                            return '-';
+                        }
+
+                        return match ($latest->status) {
+                            'pending' => 'Proses Resign',
+                            'approved' => 'Resign Disetujui',
+                            'rejected' => 'Resign Ditolak',
+                            default => '-',
+                        };
+                    })
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'Proses Resign' => 'warning',
+                        'Resign Disetujui' => 'danger',
+                        'Resign Ditolak' => 'secondary',
+                        default => 'gray',
                     }),
             ])
             ->filters([

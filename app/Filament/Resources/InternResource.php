@@ -42,9 +42,9 @@ class InternResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-academic-cap';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Master Data';
+    protected static string|UnitEnum|null $navigationGroup = 'Manajemen SDM';
 
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 2;
 
     public static function canViewAny(): bool
     {
@@ -77,6 +77,7 @@ class InternResource extends Resource
                             Select::make('company_id')
                                 ->label('Badan Usaha (Company)')
                                 ->options(Company::query()->where('is_active', true)->pluck('name', 'id'))
+                                ->helperText('Otomatis terisi jika Mentor Karyawan dipilih.')
                                 ->required()
                                 ->live()
                                 ->afterStateUpdated(fn ($set) => $set('division_id', null)),
@@ -94,6 +95,7 @@ class InternResource extends Resource
                                         ->where('is_active', true)
                                         ->pluck('name', 'id');
                                 })
+                                ->helperText('Otomatis terisi jika Mentor Karyawan dipilih.')
                                 ->required(),
 
                             Select::make('mentor_id')
@@ -105,6 +107,7 @@ class InternResource extends Resource
                                     }
                                 })
                                 ->getOptionLabelFromRecordUsing(fn (Employee $record) => "{$record->nip} - {$record->full_name}")
+                                ->helperText('Memilih Mentor akan otomatis mengeset Badan Usaha & Divisi.')
                                 ->searchable()
                                 ->preload()
                                 ->live()
@@ -256,11 +259,21 @@ class InternResource extends Resource
                     ->icon('heroicon-o-user-plus')
                     ->color('success')
                     ->visible(fn (Intern $record): bool => ! $record->user_id)
-                    ->requiresConfirmation()
                     ->modalHeading(fn (Intern $record) => "Buat Akun User untuk {$record->full_name}")
-                    ->modalDescription('Akun user akan dibuat otomatis menggunakan data nama dan email/NIS magang.')
-                    ->action(function (Intern $record) {
-                        $email = $record->email ?: strtolower($record->nis).'@magang.local';
+                    ->modalDescription('Tinjau kredensial yang akan dibuat untuk akun peserta magang ini.')
+                    ->schema([
+                        TextInput::make('email')
+                            ->label('Alamat Email Login')
+                            ->email()
+                            ->default(fn (Intern $record) => $record->email ?: strtolower($record->nis).'@magang.local')
+                            ->required(),
+                        TextInput::make('password')
+                            ->label('Password Awal')
+                            ->default('password123')
+                            ->required(),
+                    ])
+                    ->action(function (Intern $record, array $data) {
+                        $email = $data['email'];
 
                         if (User::where('email', $email)->exists()) {
                             Notification::make()
@@ -275,7 +288,7 @@ class InternResource extends Resource
                         $user = User::create([
                             'name' => $record->full_name,
                             'email' => $email,
-                            'password' => Hash::make('password123'),
+                            'password' => Hash::make($data['password']),
                         ]);
 
                         if ($role = Role::where('name', 'Employee')->first()) {
@@ -285,11 +298,21 @@ class InternResource extends Resource
                         $record->update(['user_id' => $user->id]);
 
                         Notification::make()
-                            ->title('Akun User Berhasil Dibuat')
-                            ->body("Akun untuk {$record->full_name} berhasil dibuat.\nEmail: {$email} | Password: password123")
+                            ->title('Akun User Berhasil Dibuat!')
+                            ->body("Kredensial Login {$record->full_name}:\nEmail: {$email}\nPassword: {$data['password']}")
                             ->success()
                             ->send();
                     }),
+
+                Action::make('cetakSurat')
+                    ->label('Cetak Surat')
+                    ->icon('heroicon-o-printer')
+                    ->color('gray')
+                    ->modalHeading('Surat Keterangan Magang')
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Tutup')
+                    ->modalContent(fn (Intern $record) => view('filament.modals.print-intern', ['record' => $record])),
+
                 EditAction::make(),
                 DeleteAction::make(),
             ])

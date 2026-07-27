@@ -42,9 +42,9 @@ class AttendanceCorrectionResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-document-check';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Absensi';
+    protected static string|UnitEnum|null $navigationGroup = 'Presensi & Pengajuan';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 4;
 
     public static function shouldRegisterNavigation(): bool
     {

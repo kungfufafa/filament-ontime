@@ -42,9 +42,9 @@ class FreelanceResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-briefcase';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Master Data';
+    protected static string|UnitEnum|null $navigationGroup = 'Manajemen SDM';
 
-    protected static ?int $navigationSort = 7;
+    protected static ?int $navigationSort = 3;
 
     public static function canViewAny(): bool
     {
@@ -77,6 +77,7 @@ class FreelanceResource extends Resource
                             Select::make('company_id')
                                 ->label('Badan Usaha (Company)')
                                 ->options(Company::query()->where('is_active', true)->pluck('name', 'id'))
+                                ->helperText('Otomatis terisi jika PIC / Supervisor Karyawan dipilih.')
                                 ->required()
                                 ->live()
                                 ->afterStateUpdated(fn ($set) => $set('division_id', null)),
@@ -94,6 +95,7 @@ class FreelanceResource extends Resource
                                         ->where('is_active', true)
                                         ->pluck('name', 'id');
                                 })
+                                ->helperText('Otomatis terisi jika PIC / Supervisor Karyawan dipilih.')
                                 ->required(),
 
                             Select::make('supervisor_id')
@@ -105,6 +107,7 @@ class FreelanceResource extends Resource
                                     }
                                 })
                                 ->getOptionLabelFromRecordUsing(fn (Employee $record) => "{$record->nip} - {$record->full_name}")
+                                ->helperText('Memilih PIC / Supervisor akan otomatis mengeset Badan Usaha & Divisi.')
                                 ->searchable()
                                 ->preload()
                                 ->live()
@@ -256,11 +259,21 @@ class FreelanceResource extends Resource
                     ->icon('heroicon-o-user-plus')
                     ->color('success')
                     ->visible(fn (Freelancer $record): bool => ! $record->user_id)
-                    ->requiresConfirmation()
                     ->modalHeading(fn (Freelancer $record) => "Buat Akun User untuk {$record->full_name}")
-                    ->modalDescription('Akun user akan dibuat otomatis menggunakan data nama dan email/ID freelancer.')
-                    ->action(function (Freelancer $record) {
-                        $email = $record->email ?: strtolower($record->freelancer_number).'@freelance.local';
+                    ->modalDescription('Tinjau kredensial yang akan dibuat untuk akun pekerja freelance ini.')
+                    ->schema([
+                        TextInput::make('email')
+                            ->label('Alamat Email Login')
+                            ->email()
+                            ->default(fn (Freelancer $record) => $record->email ?: strtolower($record->freelancer_number).'@freelance.local')
+                            ->required(),
+                        TextInput::make('password')
+                            ->label('Password Awal')
+                            ->default('password123')
+                            ->required(),
+                    ])
+                    ->action(function (Freelancer $record, array $data) {
+                        $email = $data['email'];
 
                         if (User::where('email', $email)->exists()) {
                             Notification::make()
@@ -275,7 +288,7 @@ class FreelanceResource extends Resource
                         $user = User::create([
                             'name' => $record->full_name,
                             'email' => $email,
-                            'password' => Hash::make('password123'),
+                            'password' => Hash::make($data['password']),
                         ]);
 
                         if ($role = Role::where('name', 'Employee')->first()) {
@@ -285,11 +298,21 @@ class FreelanceResource extends Resource
                         $record->update(['user_id' => $user->id]);
 
                         Notification::make()
-                            ->title('Akun User Berhasil Dibuat')
-                            ->body("Akun untuk {$record->full_name} berhasil dibuat.\nEmail: {$email} | Password: password123")
+                            ->title('Akun User Berhasil Dibuat!')
+                            ->body("Kredensial Login {$record->full_name}:\nEmail: {$email}\nPassword: {$data['password']}")
                             ->success()
                             ->send();
                     }),
+
+                Action::make('cetakSurat')
+                    ->label('Cetak Surat')
+                    ->icon('heroicon-o-printer')
+                    ->color('gray')
+                    ->modalHeading('Surat Keterangan Kerjasama Freelance')
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Tutup')
+                    ->modalContent(fn (Freelancer $record) => view('filament.modals.print-freelance', ['record' => $record])),
+
                 EditAction::make(),
                 DeleteAction::make(),
             ])

@@ -31,15 +31,15 @@ class ApproverResource extends Resource
 {
     protected static ?string $model = Approver::class;
 
-    protected static ?string $modelLabel = 'Mapping Approver';
+    protected static ?string $modelLabel = 'Penugasan Approver';
 
-    protected static ?string $pluralModelLabel = 'Mapping Approver';
+    protected static ?string $pluralModelLabel = 'Penugasan Approver';
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-shield-check';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Akses & Approval';
+    protected static string|UnitEnum|null $navigationGroup = 'Persetujuan (Inbox)';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 3;
 
     public static function canViewAny(): bool
     {

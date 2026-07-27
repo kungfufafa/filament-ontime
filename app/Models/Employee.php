@@ -86,4 +86,9 @@ class Employee extends Model
     {
         return $this->hasMany(Freelancer::class, 'supervisor_id');
     }
+
+    public function resignations(): HasMany
+    {
+        return $this->hasMany(Resignation::class);
+    }
 }

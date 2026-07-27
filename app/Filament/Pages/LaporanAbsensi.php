@@ -34,15 +34,15 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
     use InteractsWithForms;
     use InteractsWithTable;
 
-    protected static ?string $title = 'Laporan Rekap Absensi';
+    protected static ?string $title = 'Laporan Absensi';
 
     protected static ?string $navigationLabel = 'Laporan Absensi';
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-document-chart-bar';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Laporan';
+    protected static string|UnitEnum|null $navigationGroup = 'Presensi & Pengajuan';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 6;
 
     protected string $view = 'filament.pages.laporan-absensi';
 

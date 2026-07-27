@@ -36,9 +36,9 @@ class ResignationResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-arrow-right-on-rectangle';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Akses & Approval';
+    protected static string|UnitEnum|null $navigationGroup = 'Presensi & Pengajuan';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 5;
 
     public static function form(Schema $schema): Schema
     {
@@ -213,6 +213,15 @@ class ResignationResource extends Resource
                             ->danger()
                             ->send();
                     }),
+
+                Action::make('cetakSurat')
+                    ->label('Cetak Surat')
+                    ->icon('heroicon-o-printer')
+                    ->color('gray')
+                    ->modalHeading('Surat Keterangan Pengunduran Diri')
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Tutup')
+                    ->modalContent(fn (Resignation $record) => view('filament.modals.print-resignation', ['record' => $record])),
 
                 EditAction::make(),
                 DeleteAction::make(),

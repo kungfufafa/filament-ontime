@@ -31,13 +31,13 @@ class ApprovalFlowResource extends Resource
 
     protected static ?string $slug = 'approval-flows';
 
-    protected static ?string $modelLabel = 'Alur Approval Perusahaan';
+    protected static ?string $modelLabel = 'Alur Persetujuan';
 
-    protected static ?string $pluralModelLabel = 'Alur Approval Perusahaan';
+    protected static ?string $pluralModelLabel = 'Alur Persetujuan Perusahaan';
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-arrow-path';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Akses & Approval';
+    protected static string|UnitEnum|null $navigationGroup = 'Persetujuan (Inbox)';
 
     protected static ?int $navigationSort = 2;
 

@@ -37,15 +37,15 @@ class LeaveRequestResource extends Resource
 
     protected static ?string $slug = 'leave-requests';
 
-    protected static ?string $modelLabel = 'Pengajuan Cuti / Izin';
+    protected static ?string $modelLabel = 'Cuti & Izin';
 
-    protected static ?string $pluralModelLabel = 'Pengajuan Cuti / Izin';
+    protected static ?string $pluralModelLabel = 'Pengajuan Cuti & Izin';
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-calendar-days';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Absensi';
+    protected static string|UnitEnum|null $navigationGroup = 'Presensi & Pengajuan';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 2;
 
     public static function shouldRegisterNavigation(): bool
     {

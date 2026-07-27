@@ -2,6 +2,9 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Pages\AbsenHariIni;
+use App\Filament\Resources\LeaveRequests\LeaveRequestResource;
+use App\Filament\Resources\OvertimeRequests\OvertimeRequestResource;
 use App\Models\Attendance;
 use App\Models\LeaveRequest;
 use App\Models\OvertimeRequest;
@@ -60,17 +63,20 @@ class EmployeeStatsWidget extends BaseWidget
             Stat::make('Kehadiran Bulan Ini', "{$presentDays} Hari")
                 ->description("Telat: {$lateDays} hari bulan ini")
                 ->color('success')
-                ->icon('heroicon-o-check-circle'),
+                ->icon('heroicon-o-check-circle')
+                ->url(AbsenHariIni::getUrl()),
 
             Stat::make('Kuota Cuti Tahunan', "Sisa {$remainingLeave} Hari")
                 ->description("Terpakai: {$usedLeaveDays} dari {$maxQuota} hari")
                 ->color($remainingLeave > 2 ? 'primary' : 'warning')
-                ->icon('heroicon-o-calendar'),
+                ->icon('heroicon-o-calendar')
+                ->url(LeaveRequestResource::getUrl('index')),
 
             Stat::make('Lembur Bulan Ini', "{$overtimeHours} Jam")
                 ->description('Total durasi lembur disetujui')
                 ->color('info')
-                ->icon('heroicon-o-clock'),
+                ->icon('heroicon-o-clock')
+                ->url(OvertimeRequestResource::getUrl('index')),
         ];
     }
 }

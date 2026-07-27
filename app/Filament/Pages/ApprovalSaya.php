@@ -14,15 +14,15 @@ use UnitEnum;
 
 class ApprovalSaya extends Page
 {
-    protected static ?string $title = 'Approval Saya';
+    protected static ?string $title = 'Persetujuan Masuk';
 
-    protected static ?string $navigationLabel = 'Approval Saya';
+    protected static ?string $navigationLabel = 'Persetujuan Masuk';
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-inbox-stack';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Akses & Approval';
+    protected static string|UnitEnum|null $navigationGroup = 'Persetujuan (Inbox)';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 1;
 
     protected string $view = 'filament.pages.approval-saya';
 

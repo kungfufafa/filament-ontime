@@ -16,13 +16,13 @@ use UnitEnum;
 
 class AbsenHariIni extends Page
 {
-    protected static ?string $title = 'Absen Hari Ini';
+    protected static ?string $title = 'Presensi Mandiri';
 
-    protected static ?string $navigationLabel = 'Absen Hari Ini';
+    protected static ?string $navigationLabel = 'Presensi Mandiri';
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-camera';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Absensi';
+    protected static string|UnitEnum|null $navigationGroup = 'Presensi & Pengajuan';
 
     protected static ?int $navigationSort = 1;
 

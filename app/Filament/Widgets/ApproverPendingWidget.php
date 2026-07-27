@@ -2,6 +2,9 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Pages\ApprovalSaya;
+use App\Filament\Resources\AttendanceCorrections\AttendanceCorrectionResource;
+use App\Filament\Resources\LeaveRequests\LeaveRequestResource;
 use App\Models\AttendanceCorrection;
 use App\Models\LeaveRequest;
 use App\Models\OvertimeRequest;
@@ -38,17 +41,20 @@ class ApproverPendingWidget extends BaseWidget
             Stat::make('Antrean Approval Saya', "{$total} Item")
                 ->description('Membutuhkan persetujuan Anda saat ini')
                 ->color($total > 0 ? 'warning' : 'success')
-                ->icon('heroicon-o-inbox-stack'),
+                ->icon('heroicon-o-inbox-stack')
+                ->url(ApprovalSaya::getUrl()),
 
             Stat::make('Rincian Cuti & Lembur', "Cuti: {$pendingLeaves} | Lembur: {$pendingOvertimes}")
                 ->description('Menunggu tindakan pada tahap Anda')
                 ->color('info')
-                ->icon('heroicon-o-clock'),
+                ->icon('heroicon-o-clock')
+                ->url(LeaveRequestResource::getUrl('index')),
 
             Stat::make('Koreksi Absensi Pending', "{$pendingCorrections} Request")
                 ->description('Pengajuan koreksi jam absen')
                 ->color('primary')
-                ->icon('heroicon-o-document-check'),
+                ->icon('heroicon-o-document-check')
+                ->url(AttendanceCorrectionResource::getUrl('index')),
         ];
     }
 }
