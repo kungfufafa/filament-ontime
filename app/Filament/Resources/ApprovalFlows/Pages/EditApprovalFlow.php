@@ -37,6 +37,12 @@ class EditApprovalFlow extends EditRecord
             ->get()
             ->toArray();
 
+        $data['resignation_steps'] = ApprovalFlow::where('company_id', $companyId)
+            ->where('request_type', 'resignation')
+            ->orderBy('step_order')
+            ->get()
+            ->toArray();
+
         return $data;
     }
 
@@ -47,17 +53,20 @@ class EditApprovalFlow extends EditRecord
         $leaveSteps = $data['leave_steps'] ?? [];
         $overtimeSteps = $data['overtime_steps'] ?? [];
         $correctionSteps = $data['correction_steps'] ?? [];
+        $resignationSteps = $data['resignation_steps'] ?? [];
 
         $this->validateSteps($leaveSteps, 'Cuti / Izin');
         $this->validateSteps($overtimeSteps, 'Lembur');
         $this->validateSteps($correctionSteps, 'Koreksi Absensi');
+        $this->validateSteps($resignationSteps, 'Pengunduran Diri');
 
-        DB::transaction(function () use ($companyId, $leaveSteps, $overtimeSteps, $correctionSteps) {
+        DB::transaction(function () use ($companyId, $leaveSteps, $overtimeSteps, $correctionSteps, $resignationSteps) {
             ApprovalFlow::where('company_id', $companyId)->delete();
 
             $this->insertSteps($companyId, 'leave', $leaveSteps);
             $this->insertSteps($companyId, 'overtime', $overtimeSteps);
             $this->insertSteps($companyId, 'correction', $correctionSteps);
+            $this->insertSteps($companyId, 'resignation', $resignationSteps);
         });
 
         return $record;

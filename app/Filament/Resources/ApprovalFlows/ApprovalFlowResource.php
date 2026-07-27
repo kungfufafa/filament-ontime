@@ -82,6 +82,12 @@ class ApprovalFlowResource extends Resource
                                     ->schema([
                                         static::getStepRepeaterSchema('correction_steps', 'Koreksi Absensi'),
                                     ]),
+
+                                Tabs\Tab::make('Pengunduran Diri')
+                                    ->icon('heroicon-o-arrow-right-on-rectangle')
+                                    ->schema([
+                                        static::getStepRepeaterSchema('resignation_steps', 'Pengunduran Diri'),
+                                    ]),
                             ]),
                     ]),
             ]);
@@ -182,6 +188,11 @@ class ApprovalFlowResource extends Resource
                     ->label('Tahap Koreksi Absensi')
                     ->state(fn (Company $record): string => $record->approvalFlows()->where('request_type', 'correction')->count().' Tahap')
                     ->color('success'),
+
+                BadgeColumn::make('resignation_steps')
+                    ->label('Tahap Pengunduran Diri')
+                    ->state(fn (Company $record): string => $record->approvalFlows()->where('request_type', 'resignation')->count().' Tahap')
+                    ->color('danger'),
             ])
             ->actions([
                 EditAction::make()
