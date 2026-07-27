@@ -1,11 +1,23 @@
 <x-filament-panels::page>
     @php
-        $employee = auth()->user()?->employee;
+        $user = auth()->user();
+        $employee = $user?->employee;
+        $intern = $user?->intern;
+        $freelancer = $user?->freelancer;
+
+        // Gunakan profil yang tersedia
+        $profile = $employee ?? $intern ?? $freelancer;
+        $profileName = $employee?->full_name ?? $intern?->full_name ?? $freelancer?->full_name ?? $user?->name;
+        $profileNip  = $employee?->nip ?? $intern?->nis ?? $freelancer?->freelancer_number ?? '-';
+        $profileCompany = $employee?->company?->name ?? $intern?->company?->name ?? $freelancer?->company?->name ?? '-';
+        $tipeLabel = $employee ? 'Karyawan' : ($intern ? 'Peserta Magang' : ($freelancer ? 'Freelancer' : '-'));
+
         $attendance = $this->todayAttendance;
         $policy = $this->companyPolicy;
     @endphp
 
-    @if(!$employee)
+    @if(!$profile)
+
         <div class="p-6 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-xl text-red-800 dark:text-red-200">
             <h3 class="text-lg font-bold">Akun Terpisah Dari Data Karyawan</h3>
             <p class="mt-1 text-sm">Akun pengguna Anda belum terhubung ke data Employee. Harap hubungi Administrator untuk menghubungkan data profil Karyawan Anda.</p>
@@ -17,12 +29,12 @@
                 <h3 class="text-base font-semibold text-gray-900 dark:text-white">Profil & Kebijakan Company</h3>
                 <div class="mt-4 space-y-3 text-sm text-gray-600 dark:text-gray-400">
                     <div>
-                        <span class="block text-xs font-medium text-gray-500">Nama Karyawan</span>
-                        <span class="font-medium text-gray-900 dark:text-white">{{ $employee->full_name }}</span>
+                        <span class="block text-xs font-medium text-gray-500">Nama & Tipe</span>
+                        <span class="font-medium text-gray-900 dark:text-white">{{ $profileName }} <span class="text-xs text-gray-500">({{ $tipeLabel }})</span></span>
                     </div>
                     <div>
-                        <span class="block text-xs font-medium text-gray-500">NIP & Badan Usaha</span>
-                        <span class="font-medium text-gray-900 dark:text-white">{{ $employee->nip }} ({{ $employee->company?->name }})</span>
+                        <span class="block text-xs font-medium text-gray-500">ID / NIP & Badan Usaha</span>
+                        <span class="font-medium text-gray-900 dark:text-white">{{ $profileNip }} ({{ $profileCompany }})</span>
                     </div>
                     <div>
                         <span class="block text-xs font-medium text-gray-500">Jam Masuk & Toleransi</span>

@@ -13,6 +13,8 @@ class Attendance extends Model
 
     protected $fillable = [
         'employee_id',
+        'intern_id',
+        'freelancer_id',
         'date',
         'check_in',
         'check_out',
@@ -45,6 +47,16 @@ class Attendance extends Model
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    public function intern(): BelongsTo
+    {
+        return $this->belongsTo(Intern::class);
+    }
+
+    public function freelancer(): BelongsTo
+    {
+        return $this->belongsTo(Freelancer::class);
     }
 
     public function corrections(): HasMany

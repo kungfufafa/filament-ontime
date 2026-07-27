@@ -32,24 +32,50 @@ class AbsenHariIni extends Page
     {
         $user = auth()->user();
 
-        return (bool) ($user && ! $user->hasRole('Superadmin') && $user->employee);
+        if (! $user || $user->hasRole('Superadmin')) {
+            return false;
+        }
+
+        return (bool) ($user->employee || $user->intern || $user->freelancer);
     }
 
     public function getTodayAttendanceProperty(): ?Attendance
     {
-        $employee = auth()->user()?->employee;
-        if (! $employee) {
-            return null;
+        $user = auth()->user();
+
+        if ($user?->employee) {
+            return Attendance::where('employee_id', $user->employee->id)
+                ->whereDate('date', today())
+                ->first();
         }
 
-        return Attendance::where('employee_id', $employee->id)
-            ->whereDate('date', today())
-            ->first();
+        if ($user?->intern) {
+            return Attendance::where('intern_id', $user->intern->id)
+                ->whereDate('date', today())
+                ->first();
+        }
+
+        if ($user?->freelancer) {
+            return Attendance::where('freelancer_id', $user->freelancer->id)
+                ->whereDate('date', today())
+                ->first();
+        }
+
+        return null;
+    }
+
+    protected function getLinkedProfile(): mixed
+    {
+        $user = auth()->user();
+
+        return $user?->employee ?? $user?->intern ?? $user?->freelancer;
     }
 
     public function getCompanyPolicyProperty(): ?CompanyPolicy
     {
-        return auth()->user()?->employee?->company?->policy;
+        $profile = $this->getLinkedProfile();
+
+        return $profile?->company?->policy;
     }
 
     public function checkInAction(): Action
@@ -93,18 +119,24 @@ class AbsenHariIni extends Page
                     ->helperText('Lokasi GPS diambil secara otomatis dari perangkat Anda.'),
             ])
             ->action(function (array $data): void {
-                $employee = auth()->user()?->employee;
-                if (! $employee) {
-                    throw ValidationException::withMessages(['check_in' => 'Data Karyawan tidak ditemukan untuk akun ini.']);
+                $user = auth()->user();
+                $employee = $user?->employee;
+                $intern = $user?->intern;
+                $freelancer = $user?->freelancer;
+
+                // Tentukan profil yang digunakan
+                $profile = $employee ?? $intern ?? $freelancer;
+                if (! $profile) {
+                    throw ValidationException::withMessages(['check_in' => 'Data profil tidak ditemukan untuk akun ini.']);
                 }
 
                 $policy = $this->companyPolicy;
-                $company = $employee->company;
+                $company = $profile->company;
 
                 // Geofence validation
                 if ($policy?->require_gps && ! empty($data['check_in_lat']) && ! empty($data['check_in_lng'])) {
-                    $companyLat = (float) ($company->latitude ?? 0);
-                    $companyLng = (float) ($company->longitude ?? 0);
+                    $companyLat = (float) ($company?->latitude ?? 0);
+                    $companyLng = (float) ($company?->longitude ?? 0);
                     $radius = $policy->geofence_radius_meters ?? 100;
 
                     if ($companyLat != 0 && $companyLng != 0) {
@@ -138,8 +170,11 @@ class AbsenHariIni extends Page
                     $lateMinutes = (int) $now->diffInMinutes(now()->setTimeFromTimeString($workStartTimeStr));
                 }
 
+                // Simpan attendance dengan kolom yang sesuai tipe profil
                 Attendance::create([
-                    'employee_id' => $employee->id,
+                    'employee_id' => $employee?->id,
+                    'intern_id' => $intern?->id,
+                    'freelancer_id' => $freelancer?->id,
                     'date' => today(),
                     'check_in' => $now,
                     'check_in_photo' => $data['check_in_photo'] ?? null,

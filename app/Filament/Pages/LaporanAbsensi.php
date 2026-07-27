@@ -137,12 +137,21 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
         $user = auth()->user();
         $isSuperadmin = $user?->hasRole('Superadmin');
 
-        $query = Attendance::query()->with(['employee.company', 'employee.division']);
+        $query = Attendance::query()->with([
+            'employee.company',
+            'employee.division',
+            'intern.company',
+            'intern.division',
+            'freelancer.company',
+            'freelancer.division',
+        ]);
 
         // Scope Enforcement
         if ($user && ! $isSuperadmin) {
             $isApprover = $user->hasAnyRole(['Approver', 'BOD']);
             $employee = $user->employee;
+            $intern = $user->intern;
+            $freelancer = $user->freelancer;
 
             if ($isApprover) {
                 $divisionIds = Approver::where('user_id', $user->id)
@@ -155,21 +164,47 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
                     ->pluck('company_id')
                     ->toArray();
 
-                $query->whereHas('employee', function ($q) use ($divisionIds, $companyIds) {
-                    $q->where(function ($sub) use ($divisionIds, $companyIds) {
-                        if (! empty($divisionIds)) {
-                            $sub->whereIn('division_id', $divisionIds);
-                        }
-                        if (! empty($companyIds)) {
-                            $sub->orWhereIn('company_id', $companyIds);
-                        }
-                        if (empty($divisionIds) && empty($companyIds)) {
-                            $sub->whereRaw('1 = 0');
-                        }
-                    });
+                $query->where(function ($q) use ($divisionIds, $companyIds) {
+                    $q->whereHas('employee', function ($sub) use ($divisionIds, $companyIds) {
+                        $sub->where(function ($s) use ($divisionIds, $companyIds) {
+                            if (! empty($divisionIds)) {
+                                $s->whereIn('division_id', $divisionIds);
+                            }
+                            if (! empty($companyIds)) {
+                                $s->orWhereIn('company_id', $companyIds);
+                            }
+                            if (empty($divisionIds) && empty($companyIds)) {
+                                $s->whereRaw('1 = 0');
+                            }
+                        });
+                    })
+                        ->orWhereHas('intern', function ($sub) use ($divisionIds, $companyIds) {
+                            $sub->where(function ($s) use ($divisionIds, $companyIds) {
+                                if (! empty($divisionIds)) {
+                                    $s->whereIn('division_id', $divisionIds);
+                                }
+                                if (! empty($companyIds)) {
+                                    $s->orWhereIn('company_id', $companyIds);
+                                }
+                            });
+                        })
+                        ->orWhereHas('freelancer', function ($sub) use ($divisionIds, $companyIds) {
+                            $sub->where(function ($s) use ($divisionIds, $companyIds) {
+                                if (! empty($divisionIds)) {
+                                    $s->whereIn('division_id', $divisionIds);
+                                }
+                                if (! empty($companyIds)) {
+                                    $s->orWhereIn('company_id', $companyIds);
+                                }
+                            });
+                        });
                 });
             } elseif ($employee) {
                 $query->where('employee_id', $employee->id);
+            } elseif ($intern) {
+                $query->where('intern_id', $intern->id);
+            } elseif ($freelancer) {
+                $query->where('freelancer_id', $freelancer->id);
             } else {
                 $query->whereRaw('1 = 0');
             }
@@ -185,10 +220,20 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
             $query->whereDate('date', '<=', $data['date_to']);
         }
         if (! empty($data['company_id'])) {
-            $query->whereHas('employee', fn ($q) => $q->where('company_id', $data['company_id']));
+            $cid = $data['company_id'];
+            $query->where(function ($q) use ($cid) {
+                $q->whereHas('employee', fn ($s) => $s->where('company_id', $cid))
+                    ->orWhereHas('intern', fn ($s) => $s->where('company_id', $cid))
+                    ->orWhereHas('freelancer', fn ($s) => $s->where('company_id', $cid));
+            });
         }
         if (! empty($data['division_id'])) {
-            $query->whereHas('employee', fn ($q) => $q->where('division_id', $data['division_id']));
+            $did = $data['division_id'];
+            $query->where(function ($q) use ($did) {
+                $q->whereHas('employee', fn ($s) => $s->where('division_id', $did))
+                    ->orWhereHas('intern', fn ($s) => $s->where('division_id', $did))
+                    ->orWhereHas('freelancer', fn ($s) => $s->where('division_id', $did));
+            });
         }
 
         return $query->orderBy('date', 'desc');
@@ -199,16 +244,40 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
         return $table
             ->query(fn () => $this->getReportQuery())
             ->columns([
-                TextColumn::make('employee.company.name')
+                TextColumn::make('perusahaan_divisi')
                     ->label('Perusahaan & Divisi')
-                    ->description(fn (Attendance $record): string => $record->employee?->division?->name ?? '-')
-                    ->sortable(),
+                    ->state(fn (Attendance $record): string => $record->employee?->company?->name
+                        ?? $record->intern?->company?->name
+                        ?? $record->freelancer?->company?->name
+                        ?? '-'
+                    )
+                    ->description(fn (Attendance $record): string => $record->employee?->division?->name
+                        ?? $record->intern?->division?->name
+                        ?? $record->freelancer?->division?->name
+                        ?? '-'
+                    ),
 
-                TextColumn::make('employee.full_name')
-                    ->label('Karyawan')
-                    ->description(fn (Attendance $record): string => 'NIP: '.($record->employee?->nip ?? '-'))
-                    ->searchable()
-                    ->sortable(),
+                TextColumn::make('nama_peserta')
+                    ->label('Nama')
+                    ->state(fn (Attendance $record): string => $record->employee?->full_name
+                        ?? $record->intern?->full_name
+                        ?? $record->freelancer?->full_name
+                        ?? '-'
+                    )
+                    ->description(fn (Attendance $record): string => 'NIP/ID: '.(
+                        $record->employee?->nip
+                        ?? $record->intern?->nis
+                        ?? $record->freelancer?->freelancer_number
+                        ?? '-'
+                    )
+                    )
+                    ->searchable(query: function ($query, string $search) {
+                        $query->where(function ($q) use ($search) {
+                            $q->whereHas('employee', fn ($s) => $s->where('full_name', 'like', "%{$search}%"))
+                                ->orWhereHas('intern', fn ($s) => $s->where('full_name', 'like', "%{$search}%"))
+                                ->orWhereHas('freelancer', fn ($s) => $s->where('full_name', 'like', "%{$search}%"));
+                        });
+                    }),
 
                 TextColumn::make('date')
                     ->label('Tanggal')
@@ -264,7 +333,12 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
                     ->label('Foto Selfie')
                     ->icon('heroicon-o-eye')
                     ->color('info')
-                    ->modalHeading(fn (Attendance $record): string => 'Foto Absensi: '.($record->employee?->full_name ?? ''))
+                    ->modalHeading(fn (Attendance $record): string => 'Foto Absensi: '.(
+                        $record->employee?->full_name
+                        ?? $record->intern?->full_name
+                        ?? $record->freelancer?->full_name
+                        ?? '-'
+                    ))
                     ->modalContent(fn (Attendance $record) => view('filament.components.attendance-photo-modal', ['record' => $record]))
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Tutup')

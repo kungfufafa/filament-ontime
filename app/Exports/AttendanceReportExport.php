@@ -29,8 +29,9 @@ class AttendanceReportExport implements FromCollection, WithColumnWidths, WithDr
         return [
             'Badan Usaha',
             'Divisi',
-            'NIP',
-            'Nama Karyawan',
+            'NIP / ID',
+            'Nama',
+            'Tipe',
             'Tanggal',
             'Jam Check In',
             'Jam Check Out',
@@ -44,11 +45,36 @@ class AttendanceReportExport implements FromCollection, WithColumnWidths, WithDr
 
     public function map($row): array
     {
+        $company = $row->employee?->company?->name
+            ?? $row->intern?->company?->name
+            ?? $row->freelancer?->company?->name
+            ?? '-';
+
+        $division = $row->employee?->division?->name
+            ?? $row->intern?->division?->name
+            ?? $row->freelancer?->division?->name
+            ?? '-';
+
+        $nip = $row->employee?->nip
+            ?? $row->intern?->nis
+            ?? $row->freelancer?->freelancer_number
+            ?? '-';
+
+        $name = $row->employee?->full_name
+            ?? $row->intern?->full_name
+            ?? $row->freelancer?->full_name
+            ?? '-';
+
+        $tipe = $row->employee ? 'Karyawan'
+            : ($row->intern ? 'Magang'
+            : ($row->freelancer ? 'Freelancer' : '-'));
+
         return [
-            $row->employee?->company?->name ?? '-',
-            $row->employee?->division?->name ?? '-',
-            $row->employee?->nip ?? '-',
-            $row->employee?->full_name ?? '-',
+            $company,
+            $division,
+            $nip,
+            $name,
+            $tipe,
             $row->date ? $row->date->format('d/m/Y') : '-',
             $row->check_in ? $row->check_in->format('H:i:s') : '-',
             $row->check_out ? $row->check_out->format('H:i:s') : '-',
@@ -115,14 +141,15 @@ class AttendanceReportExport implements FromCollection, WithColumnWidths, WithDr
             'B' => 20,
             'C' => 18,
             'D' => 26,
-            'E' => 14,
-            'F' => 14,
-            'G' => 14,
-            'H' => 16,
-            'I' => 16,
-            'J' => 22,
-            'K' => 14,
-            'L' => 28,
+            'E' => 14,  // Tipe
+            'F' => 14,  // Tanggal
+            'G' => 14,  // Check In
+            'H' => 14,  // Check Out
+            'I' => 16,  // Foto Check-In
+            'J' => 16,  // Foto Check-Out
+            'K' => 22,  // Status
+            'L' => 14,  // Menit Telat
+            'M' => 28,  // Keterangan
         ];
     }
 
