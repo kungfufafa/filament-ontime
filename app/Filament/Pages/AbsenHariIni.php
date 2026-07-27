@@ -7,7 +7,7 @@ use App\Models\CompanyPolicy;
 use App\Services\GeofenceService;
 use BackedEnum;
 use Filament\Actions\Action;
-use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\ViewField;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -94,29 +94,28 @@ class AbsenHariIni extends Page
                     ->label('Foto Selfie Check In')
                     ->view('filament.components.camera-capture')
                     ->required($requirePhoto)
-                    ->visible($requirePhoto),
+                    ->visible($requirePhoto)
+                    ->validationMessages([
+                        'required' => 'Foto selfie wajib diambil. Silakan klik tombol "Ambil Foto" terlebih dahulu.',
+                    ]),
 
                 ViewField::make('gps_capture')
-                    ->view('filament.components.gps-capture')
+                    ->view('filament.components.gps-capture', ['type' => 'check_in'])
                     ->visible($requireGps),
 
-                TextInput::make('check_in_lat')
-                    ->label('Latitude GPS')
-                    ->numeric()
-                    ->readOnly()
+                Hidden::make('check_in_lat')
                     ->required($requireGps)
                     ->visible($requireGps)
-                    ->placeholder('Mengambil GPS otomatis...')
-                    ->helperText('Lokasi GPS diambil secara otomatis dari perangkat Anda.'),
+                    ->validationMessages([
+                        'required' => 'Koordinat GPS belum terdeteksi. Silakan klik Refresh GPS.',
+                    ]),
 
-                TextInput::make('check_in_lng')
-                    ->label('Longitude GPS')
-                    ->numeric()
-                    ->readOnly()
+                Hidden::make('check_in_lng')
                     ->required($requireGps)
                     ->visible($requireGps)
-                    ->placeholder('Mengambil GPS otomatis...')
-                    ->helperText('Lokasi GPS diambil secara otomatis dari perangkat Anda.'),
+                    ->validationMessages([
+                        'required' => 'Koordinat GPS belum terdeteksi. Silakan klik Refresh GPS.',
+                    ]),
             ])
             ->action(function (array $data): void {
                 $user = auth()->user();
@@ -133,25 +132,24 @@ class AbsenHariIni extends Page
                 $policy = $this->companyPolicy;
                 $company = $profile->company;
 
-                // Geofence validation
-                if ($policy?->require_gps && ! empty($data['check_in_lat']) && ! empty($data['check_in_lng'])) {
-                    $companyLat = (float) ($company?->latitude ?? 0);
-                    $companyLng = (float) ($company?->longitude ?? 0);
-                    $radius = $policy->geofence_radius_meters ?? 100;
+                // Multi-location Geofence validation
+                if ($policy?->require_gps && ! empty($data['check_in_lat']) && ! empty($data['check_in_lng']) && $company) {
+                    $result = GeofenceService::validateCompanyGeofence(
+                        $company,
+                        (float) $data['check_in_lat'],
+                        (float) $data['check_in_lng']
+                    );
 
-                    if ($companyLat != 0 && $companyLng != 0) {
-                        $distance = GeofenceService::calculateDistance(
-                            $companyLat,
-                            $companyLng,
-                            (float) $data['check_in_lat'],
-                            (float) $data['check_in_lng']
-                        );
+                    if (! $result['is_valid']) {
+                        Notification::make()
+                            ->title('Lokasi Di Luar Geofence')
+                            ->body($result['message'])
+                            ->danger()
+                            ->send();
 
-                        if ($distance > $radius) {
-                            throw ValidationException::withMessages([
-                                'check_in_lat' => "Posisi Anda ({$distance} meter) berada di luar radius geofence kantor ({$radius} meter).",
-                            ]);
-                        }
+                        throw ValidationException::withMessages([
+                            'check_in_photo' => $result['message'],
+                        ]);
                     }
                 }
 
@@ -208,29 +206,28 @@ class AbsenHariIni extends Page
                     ->label('Foto Selfie Check Out')
                     ->view('filament.components.camera-capture')
                     ->required($requirePhoto)
-                    ->visible($requirePhoto),
+                    ->visible($requirePhoto)
+                    ->validationMessages([
+                        'required' => 'Foto selfie wajib diambil. Silakan klik tombol "Ambil Foto" terlebih dahulu.',
+                    ]),
 
                 ViewField::make('gps_capture')
-                    ->view('filament.components.gps-capture')
+                    ->view('filament.components.gps-capture', ['type' => 'check_out'])
                     ->visible($requireGps),
 
-                TextInput::make('check_out_lat')
-                    ->label('Latitude GPS')
-                    ->numeric()
-                    ->readOnly()
+                Hidden::make('check_out_lat')
                     ->required($requireGps)
                     ->visible($requireGps)
-                    ->placeholder('Mengambil GPS otomatis...')
-                    ->helperText('Lokasi GPS diambil secara otomatis dari perangkat Anda.'),
+                    ->validationMessages([
+                        'required' => 'Koordinat GPS belum terdeteksi. Silakan klik Refresh GPS.',
+                    ]),
 
-                TextInput::make('check_out_lng')
-                    ->label('Longitude GPS')
-                    ->numeric()
-                    ->readOnly()
+                Hidden::make('check_out_lng')
                     ->required($requireGps)
                     ->visible($requireGps)
-                    ->placeholder('Mengambil GPS otomatis...')
-                    ->helperText('Lokasi GPS diambil secara otomatis dari perangkat Anda.'),
+                    ->validationMessages([
+                        'required' => 'Koordinat GPS belum terdeteksi. Silakan klik Refresh GPS.',
+                    ]),
             ])
             ->action(function (array $data): void {
                 $attendance = $this->todayAttendance;
@@ -239,26 +236,26 @@ class AbsenHariIni extends Page
                 }
 
                 $policy = $this->companyPolicy;
-                $company = auth()->user()?->employee?->company;
+                $profile = $this->getLinkedProfile();
+                $company = $profile?->company;
 
-                if ($policy?->require_gps && ! empty($data['check_out_lat']) && ! empty($data['check_out_lng'])) {
-                    $companyLat = (float) ($company->latitude ?? 0);
-                    $companyLng = (float) ($company->longitude ?? 0);
-                    $radius = $policy->geofence_radius_meters ?? 100;
+                if ($policy?->require_gps && ! empty($data['check_out_lat']) && ! empty($data['check_out_lng']) && $company) {
+                    $result = GeofenceService::validateCompanyGeofence(
+                        $company,
+                        (float) $data['check_out_lat'],
+                        (float) $data['check_out_lng']
+                    );
 
-                    if ($companyLat != 0 && $companyLng != 0) {
-                        $distance = GeofenceService::calculateDistance(
-                            $companyLat,
-                            $companyLng,
-                            (float) $data['check_out_lat'],
-                            (float) $data['check_out_lng']
-                        );
+                    if (! $result['is_valid']) {
+                        Notification::make()
+                            ->title('Lokasi Di Luar Geofence')
+                            ->body($result['message'])
+                            ->danger()
+                            ->send();
 
-                        if ($distance > $radius) {
-                            throw ValidationException::withMessages([
-                                'check_out_lat' => "Posisi Anda ({$distance} meter) berada di luar radius geofence kantor ({$radius} meter).",
-                            ]);
-                        }
+                        throw ValidationException::withMessages([
+                            'check_out_photo' => $result['message'],
+                        ]);
                     }
                 }
 

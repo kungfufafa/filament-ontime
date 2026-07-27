@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasNormalizedPhone;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,7 +11,7 @@ use Illuminate\Validation\ValidationException;
 
 class Company extends Model
 {
-    use HasFactory;
+    use HasFactory, HasNormalizedPhone;
 
     protected $fillable = [
         'name',
@@ -79,5 +80,10 @@ class Company extends Model
     public function holidays(): HasMany
     {
         return $this->hasMany(Holiday::class);
+    }
+
+    public function locations(): HasMany
+    {
+        return $this->hasMany(CompanyLocation::class);
     }
 }

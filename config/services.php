@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'gateway_hub' => [
+        'enabled' => ! empty(env('GATEWAY_HUB_URL')),
+        'url' => env('GATEWAY_HUB_URL'),
+        'api_key' => env('GATEWAY_HUB_API_KEY'),
+    ],
+
 ];

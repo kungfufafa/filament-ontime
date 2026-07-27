@@ -17,12 +17,25 @@ class AttendanceApiController extends Controller
     {
         $user = $request->user();
         $employee = $user->employee;
+        $intern = $user->intern;
+        $freelancer = $user->freelancer;
 
-        if (! $employee) {
-            return response()->json(['message' => 'Employee profile not found.'], 422);
+        $profile = $employee ?? $intern ?? $freelancer;
+
+        if (! $profile) {
+            return response()->json(['message' => 'Profile absensi tidak ditemukan.'], 422);
         }
 
-        $todayAttendance = Attendance::where('employee_id', $employee->id)
+        $todayAttendance = Attendance::query()
+            ->where(function ($q) use ($employee, $intern, $freelancer) {
+                if ($employee) {
+                    $q->where('employee_id', $employee->id);
+                } elseif ($intern) {
+                    $q->where('intern_id', $intern->id);
+                } elseif ($freelancer) {
+                    $q->where('freelancer_id', $freelancer->id);
+                }
+            })
             ->whereDate('date', today())
             ->first();
 
@@ -30,7 +43,7 @@ class AttendanceApiController extends Controller
             return response()->json(['message' => 'Sudah melakukan check in hari ini.'], 422);
         }
 
-        $company = $employee->company;
+        $company = $profile->company;
         $policy = $company?->policy;
 
         $lat = $request->input('latitude');
@@ -41,18 +54,11 @@ class AttendanceApiController extends Controller
                 return response()->json(['message' => 'Lokasi GPS wajib diisi.'], 422);
             }
 
-            if ($company->latitude && $company->longitude) {
-                $service = new GeofenceService;
-                $isWithinRadius = $service->isWithinRadius(
-                    (float) $lat,
-                    (float) $lng,
-                    (float) $company->latitude,
-                    (float) $company->longitude,
-                    (int) ($policy->geofence_radius_meters ?? 100)
-                );
+            if ($company) {
+                $geofenceResult = GeofenceService::validateCompanyGeofence($company, (float) $lat, (float) $lng);
 
-                if (! $isWithinRadius) {
-                    return response()->json(['message' => 'Lokasi Anda berada di luar radius lokasi kantor.'], 422);
+                if (! $geofenceResult['is_valid']) {
+                    return response()->json(['message' => $geofenceResult['message']], 422);
                 }
             }
         }
@@ -72,7 +78,7 @@ class AttendanceApiController extends Controller
         $toleranceMinutes = $policy?->late_tolerance_minutes ?? 15;
         $lateThreshold = (clone $workStart)->addMinutes($toleranceMinutes);
 
-        $status = 'present';
+        $status = 'on_time';
         $lateMinutes = 0;
 
         if ($now->greaterThan($lateThreshold)) {
@@ -82,13 +88,15 @@ class AttendanceApiController extends Controller
 
         $attendance = Attendance::updateOrCreate(
             [
-                'employee_id' => $employee->id,
+                'employee_id' => $employee?->id,
+                'intern_id' => $intern?->id,
+                'freelancer_id' => $freelancer?->id,
                 'date' => today()->toDateString(),
             ],
             [
                 'check_in' => $now->toTimeString(),
-                'check_in_latitude' => $lat,
-                'check_in_longitude' => $lng,
+                'check_in_lat' => $lat,
+                'check_in_lng' => $lng,
                 'check_in_photo' => $photoPath,
                 'status' => $status,
                 'late_minutes' => $lateMinutes,
@@ -105,12 +113,25 @@ class AttendanceApiController extends Controller
     {
         $user = $request->user();
         $employee = $user->employee;
+        $intern = $user->intern;
+        $freelancer = $user->freelancer;
 
-        if (! $employee) {
-            return response()->json(['message' => 'Employee profile not found.'], 422);
+        $profile = $employee ?? $intern ?? $freelancer;
+
+        if (! $profile) {
+            return response()->json(['message' => 'Profile absensi tidak ditemukan.'], 422);
         }
 
-        $attendance = Attendance::where('employee_id', $employee->id)
+        $attendance = Attendance::query()
+            ->where(function ($q) use ($employee, $intern, $freelancer) {
+                if ($employee) {
+                    $q->where('employee_id', $employee->id);
+                } elseif ($intern) {
+                    $q->where('intern_id', $intern->id);
+                } elseif ($freelancer) {
+                    $q->where('freelancer_id', $freelancer->id);
+                }
+            })
             ->whereDate('date', today())
             ->first();
 
@@ -122,7 +143,7 @@ class AttendanceApiController extends Controller
             return response()->json(['message' => 'Sudah melakukan check out hari ini.'], 422);
         }
 
-        $company = $employee->company;
+        $company = $profile->company;
         $policy = $company?->policy;
 
         $lat = $request->input('latitude');
@@ -133,18 +154,11 @@ class AttendanceApiController extends Controller
                 return response()->json(['message' => 'Lokasi GPS wajib diisi.'], 422);
             }
 
-            if ($company->latitude && $company->longitude) {
-                $service = new GeofenceService;
-                $isWithinRadius = $service->isWithinRadius(
-                    (float) $lat,
-                    (float) $lng,
-                    (float) $company->latitude,
-                    (float) $company->longitude,
-                    (int) ($policy->geofence_radius_meters ?? 100)
-                );
+            if ($company) {
+                $geofenceResult = GeofenceService::validateCompanyGeofence($company, (float) $lat, (float) $lng);
 
-                if (! $isWithinRadius) {
-                    return response()->json(['message' => 'Lokasi Anda berada di luar radius lokasi kantor.'], 422);
+                if (! $geofenceResult['is_valid']) {
+                    return response()->json(['message' => $geofenceResult['message']], 422);
                 }
             }
         }
@@ -160,8 +174,8 @@ class AttendanceApiController extends Controller
 
         $attendance->update([
             'check_out' => now()->toTimeString(),
-            'check_out_latitude' => $lat,
-            'check_out_longitude' => $lng,
+            'check_out_lat' => $lat,
+            'check_out_lng' => $lng,
             'check_out_photo' => $photoPath,
         ]);
 

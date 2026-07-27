@@ -23,8 +23,8 @@ class SeederTest extends TestCase
         $this->assertTrue(Role::where('name', 'Employee')->exists());
 
         // Verify Superadmin User
-        $this->assertDatabaseHas('users', ['email' => 'admin@ontime.com']);
-        $admin = User::where('email', 'admin@ontime.com')->first();
+        $this->assertDatabaseHas('users', ['email' => 'admin@ontime.oceanspace.co.id']);
+        $admin = User::where('email', 'admin@ontime.oceanspace.co.id')->first();
         $this->assertTrue($admin->hasRole('Superadmin'));
     }
 }

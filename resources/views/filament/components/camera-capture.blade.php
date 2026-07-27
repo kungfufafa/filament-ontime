@@ -167,13 +167,22 @@ class="space-y-3">
     <!-- Canvas Hidden -->
     <canvas x-ref="canvas" class="hidden"></canvas>
 
+    <!-- Error Validation Display jika tombol Submit diklik sebelum foto diambil -->
+    @error($getStatePath())
+        <div class="p-2.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/50 rounded-lg text-center">
+            <p class="text-xs font-semibold text-red-600 dark:text-red-400">
+                {{ $message }}
+            </p>
+        </div>
+    @enderror
+
     <!-- Preview Foto jika sudah diambil -->
     <template x-if="photoPath">
         <div class="space-y-2 text-center">
-            <div class="relative w-48 h-48 mx-auto rounded-lg overflow-hidden border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
-                <img :src="previewUrl || ('/storage/' + photoPath)" class="w-full h-full object-cover" />
+            <div class="relative w-48 h-48 mx-auto rounded-lg overflow-hidden border border-emerald-500/50 dark:border-emerald-600/50 bg-gray-100 dark:bg-gray-800 shadow-md">
+                <img :src="previewUrl || ('{{ rtrim(Storage::disk('s3')->url(''), '/') }}/' + photoPath)" class="w-full h-full object-cover" />
             </div>
-            <div class="flex items-center justify-center gap-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+            <div class="flex items-center justify-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                 <span>Foto selfie berhasil disimpan</span>
             </div>
@@ -215,10 +224,15 @@ class="space-y-3">
                 </template>
             </div>
 
+            <!-- Petunjuk visual bahwa foto belum diambil -->
+            <div class="text-center text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 py-1.5 px-3 rounded-md border border-amber-200 dark:border-amber-800/50 max-w-xs mx-auto flex items-center justify-center">
+                <span>Klik <strong>"Ambil Foto"</strong> sebelum menekan Submit.</span>
+            </div>
+
             <!-- Action Buttons -->
             <template x-if="cameraActive && !uploading">
                 <div class="flex items-center justify-center gap-2 max-w-xs mx-auto">
-                    <button type="button" @click="takeSnapshot()" class="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg text-xs transition flex items-center justify-center gap-1.5 shadow-sm">
+                    <button type="button" @click="takeSnapshot()" class="flex-1 py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg text-xs transition flex items-center justify-center gap-1.5 shadow-sm animate-pulse hover:animate-none">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h0.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                         <span>Ambil Foto</span>
                     </button>

@@ -17,12 +17,12 @@ class AttendancePhotoController extends Controller
             if ($request->hasFile('photo')) {
                 $file = $request->file('photo');
                 if ($file && $file->isValid()) {
-                    $path = $file->store('attendance-photos', 'public');
+                    $path = $file->store('attendance-photos', 's3');
 
                     return response()->json([
                         'success' => true,
                         'path' => $path,
-                        'url' => Storage::disk('public')->url($path),
+                        'url' => Storage::disk('s3')->url($path),
                     ]);
                 }
 
@@ -47,12 +47,12 @@ class AttendancePhotoController extends Controller
 
                 if ($decoded !== false && strlen($decoded) > 0) {
                     $path = 'attendance-photos/'.uniqid('selfie_').'.jpg';
-                    Storage::disk('public')->put($path, $decoded);
+                    Storage::disk('s3')->put($path, $decoded);
 
                     return response()->json([
                         'success' => true,
                         'path' => $path,
-                        'url' => Storage::disk('public')->url($path),
+                        'url' => Storage::disk('s3')->url($path),
                     ]);
                 }
             }
@@ -75,3 +75,4 @@ class AttendancePhotoController extends Controller
         }
     }
 }
+

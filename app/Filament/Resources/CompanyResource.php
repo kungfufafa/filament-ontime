@@ -10,12 +10,14 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
@@ -47,42 +49,127 @@ class CompanyResource extends Resource
     {
         return $schema
             ->components([
-                Section::make('Informasi Perusahaan')
-                    ->schema([
-                        Grid::make(2)->schema([
-                            TextInput::make('name')
-                                ->label('Nama Badan Usaha')
-                                ->required()
-                                ->maxLength(255),
-                            TextInput::make('code')
-                                ->label('Kode Perusahaan')
-                                ->required()
-                                ->unique(ignoreRecord: true)
-                                ->maxLength(50),
-                            TextInput::make('email')
-                                ->label('Email')
-                                ->email()
-                                ->maxLength(255),
-                            TextInput::make('phone')
-                                ->label('Telepon')
-                                ->tel()
-                                ->maxLength(50),
-                            Textarea::make('address')
-                                ->label('Alamat')
-                                ->columnSpanFull(),
-                            TextInput::make('latitude')
-                                ->label('Latitude Koordinat Kantor')
-                                ->numeric()
-                                ->placeholder('Contoh: -6.2000000'),
-                            TextInput::make('longitude')
-                                ->label('Longitude Koordinat Kantor')
-                                ->numeric()
-                                ->placeholder('Contoh: 106.8166667'),
-                            Toggle::make('is_active')
-                                ->label('Status Aktif')
-                                ->default(true),
-                        ]),
-                    ]),
+                Tabs::make('CompanyTabs')
+                    ->tabs([
+                        Tabs\Tab::make('Informasi Utama')
+                            ->icon('heroicon-o-building-office')
+                            ->schema([
+                                Section::make('Informasi Badan Usaha')
+                                    ->schema([
+                                        Grid::make(2)->schema([
+                                            TextInput::make('name')
+                                                ->label('Nama Badan Usaha')
+                                                ->placeholder('Contoh: PT OnTime Indonesia')
+                                                ->required()
+                                                ->maxLength(255),
+
+                                            TextInput::make('code')
+                                                ->label('Kode Perusahaan')
+                                                ->placeholder('Contoh: ONTIME')
+                                                ->required()
+                                                ->unique(ignoreRecord: true)
+                                                ->maxLength(50),
+
+                                            TextInput::make('email')
+                                                ->label('Email Perusahaan')
+                                                ->email()
+                                                ->maxLength(255),
+
+                                            TextInput::make('phone')
+                                                ->label('Telepon Perusahaan')
+                                                ->tel()
+                                                ->maxLength(50),
+
+                                            Toggle::make('is_active')
+                                                ->label('Status Aktif')
+                                                ->default(true),
+
+                                            Textarea::make('address')
+                                                ->label('Alamat Utama Perusahaan')
+                                                ->rows(3)
+                                                ->columnSpanFull(),
+                                        ]),
+                                    ]),
+
+                                Section::make('Koordinat GPS Utama / HQ')
+                                    ->description('Koordinat ini digunakan sebagai acuan kantor pusat jika lokasi cabang spesifik belum didaftarkan.')
+                                    ->schema([
+                                        Grid::make(2)->schema([
+                                            TextInput::make('latitude')
+                                                ->label('Latitude Kantor Utama')
+                                                ->numeric()
+                                                ->placeholder('Contoh: -6.1753924'),
+
+                                            TextInput::make('longitude')
+                                                ->label('Longitude Kantor Utama')
+                                                ->numeric()
+                                                ->placeholder('Contoh: 106.8271528'),
+                                        ]),
+                                    ])
+                                    ->collapsible(),
+                            ]),
+
+                        Tabs\Tab::make('Lokasi & Cabang (Multi-Geofence)')
+                            ->icon('heroicon-o-map-pin')
+                            ->schema([
+                                Section::make('Daftar Cabang & Site Operasional')
+                                    ->description('Kelola seluruh lokasi kantor cabang, outlet, atau site operasional pendukung. Pengguna yang berada di salah satu lokasi aktif ini dapat melakukan absensi GPS.')
+                                    ->schema([
+                                        Repeater::make('locations')
+                                            ->relationship('locations')
+                                            ->itemLabel(fn (array $state): ?string => ! empty($state['name'])
+                                                ? "Lokasi: {$state['name']}".(! empty($state['radius_meters']) ? " (Radius: {$state['radius_meters']}m)" : '')
+                                                : 'Lokasi Cabang Baru'
+                                            )
+                                            ->collapsible()
+                                            ->cloneable()
+                                            ->schema([
+                                                Grid::make(3)->schema([
+                                                    TextInput::make('name')
+                                                        ->label('Nama Cabang / Lokasi')
+                                                        ->placeholder('Misal: Cabang Bandung / Outlet Mall')
+                                                        ->required()
+                                                        ->columnSpan(2),
+
+                                                    Toggle::make('is_active')
+                                                        ->label('Status Aktif')
+                                                        ->default(true)
+                                                        ->inline(false)
+                                                        ->columnSpan(1),
+
+                                                    TextInput::make('latitude')
+                                                        ->label('Latitude')
+                                                        ->numeric()
+                                                        ->required()
+                                                        ->placeholder('-6.1753924')
+                                                        ->columnSpan(1),
+
+                                                    TextInput::make('longitude')
+                                                        ->label('Longitude')
+                                                        ->numeric()
+                                                        ->required()
+                                                        ->placeholder('106.8271528')
+                                                        ->columnSpan(1),
+
+                                                    TextInput::make('radius_meters')
+                                                        ->label('Radius Geofence (Meter)')
+                                                        ->numeric()
+                                                        ->placeholder('Opsional (Ikuti kebijakan)')
+                                                        ->columnSpan(1),
+
+                                                    Textarea::make('address')
+                                                        ->label('Alamat Cabang')
+                                                        ->rows(2)
+                                                        ->columnSpanFull(),
+                                                ]),
+                                            ])
+                                            ->defaultItems(0)
+                                            ->addActionLabel('Tambah Cabang / Lokasi Baru')
+                                            ->columnSpanFull(),
+                                    ]),
+                            ]),
+                    ])
+                    ->columnSpanFull(),
             ]);
     }
 

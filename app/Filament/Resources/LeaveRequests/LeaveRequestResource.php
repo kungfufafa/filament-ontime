@@ -169,6 +169,8 @@ class LeaveRequestResource extends Resource
                                     default => 'Dokumen Pendukung Cuti (Opsional)',
                                 })
                                 ->directory('leave-attachments')
+                                ->disk('s3')
+                                ->visibility('public')
                                 ->columnSpanFull(),
 
                             Textarea::make('reason')

@@ -298,14 +298,14 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
 
                 ImageColumn::make('check_in_photo')
                     ->label('Foto Check-In')
-                    ->disk('public')
+                    ->disk('s3')
                     ->square()
                     ->size(36)
                     ->defaultImageUrl(null),
 
                 ImageColumn::make('check_out_photo')
                     ->label('Foto Check-Out')
-                    ->disk('public')
+                    ->disk('s3')
                     ->square()
                     ->size(36)
                     ->defaultImageUrl(null),

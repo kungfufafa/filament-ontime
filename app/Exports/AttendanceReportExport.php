@@ -98,13 +98,14 @@ class AttendanceReportExport implements FromCollection, WithColumnWidths, WithDr
         $rowNumber = 2;
 
         foreach ($this->records as $row) {
-            if (! empty($row->check_in_photo) && Storage::disk('public')->exists($row->check_in_photo)) {
-                $path = Storage::disk('public')->path($row->check_in_photo);
-                if (file_exists($path)) {
+            if (! empty($row->check_in_photo) && Storage::disk('s3')->exists($row->check_in_photo)) {
+                $tempPath = tempnam(sys_get_temp_dir(), 'attendance_in_');
+                file_put_contents($tempPath, Storage::disk('s3')->get($row->check_in_photo));
+                if (file_exists($tempPath)) {
                     $drawing = new Drawing;
                     $drawing->setName('Foto Check-In');
                     $drawing->setDescription('Foto Check-In');
-                    $drawing->setPath($path);
+                    $drawing->setPath($tempPath);
                     $drawing->setHeight(40);
                     $drawing->setCoordinates('H'.$rowNumber);
                     $drawing->setOffsetX(10);
@@ -113,13 +114,14 @@ class AttendanceReportExport implements FromCollection, WithColumnWidths, WithDr
                 }
             }
 
-            if (! empty($row->check_out_photo) && Storage::disk('public')->exists($row->check_out_photo)) {
-                $path = Storage::disk('public')->path($row->check_out_photo);
-                if (file_exists($path)) {
+            if (! empty($row->check_out_photo) && Storage::disk('s3')->exists($row->check_out_photo)) {
+                $tempPath = tempnam(sys_get_temp_dir(), 'attendance_out_');
+                file_put_contents($tempPath, Storage::disk('s3')->get($row->check_out_photo));
+                if (file_exists($tempPath)) {
                     $drawing = new Drawing;
                     $drawing->setName('Foto Check-Out');
                     $drawing->setDescription('Foto Check-Out');
-                    $drawing->setPath($path);
+                    $drawing->setPath($tempPath);
                     $drawing->setHeight(40);
                     $drawing->setCoordinates('I'.$rowNumber);
                     $drawing->setOffsetX(10);

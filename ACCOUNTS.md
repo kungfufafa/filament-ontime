@@ -7,11 +7,11 @@ Dokumen ini berisi informasi mengenai aturan pembuatan akun default, role & hak 
 ## 🔑 Aturan Kredensial Default
 
 1. **Superadmin Account**:
-   - **Email**: `admin@ontime.com` 
+   - **Email**: `admin@ontime.oceanspace.co.id` 
    - **Password**: `password` 
 
 2. **Employee / User Accounts**:
-   - **Email**: `{username}@ontime.com` (contoh: `muhammadfadila@ontime.com`)
+   - **Email**: `{username}@ontime.oceanspace.co.id` (contoh: `muhammadfadila@ontime.oceanspace.co.id`)
    - **Password**: `{username}` (password sama dengan username, contoh: `muhammadfadila`)
 
 --- 
@@ -31,7 +31,7 @@ Dokumen ini berisi informasi mengenai aturan pembuatan akun default, role & hak 
 
 | No | Nama Karyawan | Email Login | Password | Level / Jabatan | Divisi |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Super Admin OnTime | `admin@ontime.com` | `password` | - - - | - |
+| 1 | Super Admin OnTime | `admin@ontime.oceanspace.co.id` | `password` | - - - | - |
 
 ## Role: BOD (1 Akun)
 
@@ -334,4 +334,21 @@ Dokumen ini berisi informasi mengenai aturan pembuatan akun default, role & hak 
 | 259 | MOH RIO FERDIAN KS | `rioferdian@ontime.com` | `rioferdian` | Staff - STAFF KURIR | Logistik & Kurir SCM |
 | 260 | MAMAN SYAHPUTRA | `mamansyahputra@ontime.com` | `mamansyahputra` | Staff - STAFF KURIR | Logistik & Kurir SCM |
 | 261 | MOCH ARIP | `mocharip@ontime.com` | `mocharip` | Staff - DRIVER LOGISTIK | Logistik & Kurir SCM |
+
+---
+
+## Role: Magang / Intern
+
+| No | Nama Peserta | Email Login | Password | NIS / ID | Institusi | Divisi |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Budi Intern | `intern1@ontime.com` | `password` | INT-2026-001 | Universitas Indonesia | CompleteMe Resto |
+
+---
+
+## Role: Freelance
+
+| No | Nama Freelance | Email Login | Password | No. Freelance | Spesialisasi / Inst. | Divisi |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Siti Freelance | `freelance1@ontime.com` | `password` | FL-2026-001 | Freelance Professional | CompleteMe Resto |
+
 

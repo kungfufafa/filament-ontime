@@ -150,6 +150,8 @@ class AttendanceCorrectionResource extends Resource
                             FileUpload::make('attachment')
                                 ->label('Bukti Pendukung / Lampiran (Opsional)')
                                 ->directory('correction-attachments')
+                                ->disk('s3')
+                                ->visibility('public')
                                 ->columnSpanFull(),
 
                             Textarea::make('reason')
