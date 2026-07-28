@@ -32,7 +32,7 @@ class AttendancePhotoController extends Controller
                     return response()->json([
                         'success' => true,
                         'path' => $path,
-                        'url' => Storage::disk('s3')->url($path),
+                        'url' => Storage::disk('s3')->temporaryUrl($path, now()->addMinutes(60)),
                     ]);
                 }
 
@@ -63,7 +63,7 @@ class AttendancePhotoController extends Controller
                     return response()->json([
                         'success' => true,
                         'path' => $path,
-                        'url' => Storage::disk('s3')->url($path),
+                        'url' => Storage::disk('s3')->temporaryUrl($path, now()->addMinutes(60)),
                     ]);
                 }
             }

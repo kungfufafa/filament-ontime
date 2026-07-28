@@ -14,9 +14,12 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
+
 #[Fillable(['name', 'email', 'phone', 'password', 'is_active'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, HasNormalizedPhone, HasRoles, Notifiable;
@@ -94,5 +97,15 @@ class User extends Authenticatable
     public function canTrackApprovalProgressFor(Employee $employee): bool
     {
         return $this->hasRole('Employee') && $this->employee?->is($employee);
+    }
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        // Require the user to be active (if you use that field)
+        if (isset($this->is_active) && !$this->is_active) {
+            return false;
+        }
+
+        return true; // or implement specific role checks here if needed
     }
 }

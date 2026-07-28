@@ -180,7 +180,19 @@ class="space-y-3">
     <template x-if="photoPath">
         <div class="space-y-2 text-center">
             <div class="relative w-48 h-48 mx-auto rounded-lg overflow-hidden border border-emerald-500/50 dark:border-emerald-600/50 bg-gray-100 dark:bg-gray-800 shadow-md">
-                <img :src="previewUrl || ('{{ rtrim(Storage::disk('s3')->url(''), '/') }}/' + photoPath)" class="w-full h-full object-cover" />
+                @php
+                    $statePath = $getStatePath();
+                    $state = data_get($this, $statePath);
+                    $initialUrl = '';
+                    if ($state) {
+                        try {
+                            $initialUrl = \Illuminate\Support\Facades\Storage::disk('s3')->temporaryUrl($state, now()->addMinutes(60));
+                        } catch (\Exception $e) {
+                            $initialUrl = '';
+                        }
+                    }
+                @endphp
+                <img :src="previewUrl || '{{ $initialUrl }}'" class="w-full h-full object-cover" />
             </div>
             <div class="flex items-center justify-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
