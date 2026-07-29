@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\AttendanceStatus;
 use App\Models\ApprovalFlow;
 use App\Models\Approver;
 use App\Models\Attendance;
@@ -69,22 +70,22 @@ class AttendanceTest extends TestCase
             'employee_id' => $employee->id,
             'date' => today(),
             'check_in' => now()->setTime(8, 10, 0),
-            'status' => 'on_time',
+            'status' => AttendanceStatus::OnTime,
             'late_minutes' => 0,
         ]);
 
-        $this->assertEquals('on_time', $onTimeAttendance->status);
+        $this->assertEquals(AttendanceStatus::OnTime, $onTimeAttendance->status);
         $this->assertEquals(0, $onTimeAttendance->late_minutes);
 
         $lateAttendance = Attendance::create([
             'employee_id' => $employee->id,
             'date' => today()->addDay(),
             'check_in' => now()->addDay()->setTime(8, 25, 0),
-            'status' => 'late',
+            'status' => AttendanceStatus::Late,
             'late_minutes' => 25,
         ]);
 
-        $this->assertEquals('late', $lateAttendance->status);
+        $this->assertEquals(AttendanceStatus::Late, $lateAttendance->status);
         $this->assertEquals(25, $lateAttendance->late_minutes);
     }
 

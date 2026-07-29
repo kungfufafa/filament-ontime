@@ -17,10 +17,15 @@ class CreateLeaveRequest extends CreateRecord
     {
         $user = auth()->user();
         $employee = $user?->employee;
+        $intern = $user?->intern;
+        $freelancer = $user?->freelancer;
 
-        if (! $user?->hasAnyRole(['Employee', 'BOD']) || ! $employee) {
+        // Resolve the active worker profile
+        $workerProfile = $employee ?? $intern ?? $freelancer;
+
+        if (! $user?->hasAnyRole(['Employee', 'BOD']) || ! $workerProfile) {
             throw ValidationException::withMessages([
-                'leave_type' => 'Akun pengguna Anda belum terhubung ke data Employee.',
+                'leave_type' => 'Akun pengguna Anda belum terhubung ke data Karyawan, Magang, atau Freelance.',
             ]);
         }
 
@@ -35,14 +40,29 @@ class CreateLeaveRequest extends CreateRecord
 
         $daysCount = $startDate->diffInDays($endDate) + 1;
 
+        // Quota check: applies to employees AND interns (both use company policy)
+        // Freelancers are exempt from quota — they can only submit permission/sick, not annual_leave
         if ($data['leave_type'] === 'annual_leave') {
-            $policy = $employee->company?->policy;
+            if ($freelancer) {
+                throw ValidationException::withMessages([
+                    'leave_type' => 'Freelancer tidak dapat mengajukan cuti tahunan. Gunakan jenis Izin Tidak Masuk.',
+                ]);
+            }
+
+            $policy = $workerProfile->company?->policy;
             $maxQuota = $policy?->annual_leave_quota ?? 12;
 
-            $usedQuota = (int) LeaveRequest::where('employee_id', $employee->id)
-                ->where('leave_type', 'annual_leave')
+            // Build quota query per worker type
+            $usedQuota = LeaveRequest::where('leave_type', 'annual_leave')
                 ->where('status', 'approved')
                 ->whereYear('start_date', now()->year)
+                ->where(function ($q) use ($employee, $intern) {
+                    if ($employee) {
+                        $q->where('employee_id', $employee->id);
+                    } elseif ($intern) {
+                        $q->where('intern_id', $intern->id);
+                    }
+                })
                 ->sum('days_count');
 
             $remaining = $maxQuota - $usedQuota;
@@ -54,7 +74,10 @@ class CreateLeaveRequest extends CreateRecord
             }
         }
 
-        $data['employee_id'] = $employee->id;
+        // Assign exactly one FK
+        $data['employee_id'] = $employee?->id;
+        $data['intern_id'] = $intern?->id;
+        $data['freelancer_id'] = $freelancer?->id;
         $data['days_count'] = $daysCount;
         $data['status'] = 'pending';
 
