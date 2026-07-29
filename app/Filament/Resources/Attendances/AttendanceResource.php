@@ -1,0 +1,254 @@
+<?php
+
+namespace App\Filament\Resources\Attendances;
+
+use App\Enums\AttendanceStatus;
+use App\Models\Attendance;
+use App\Models\Company;
+use BackedEnum;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Resources\Resource;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\BadgeColumn;
+use Filament\Tables\Columns\ImageColumn;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use UnitEnum;
+
+class AttendanceResource extends Resource
+{
+    protected static ?string $model = Attendance::class;
+
+    protected static ?string $modelLabel = 'Data Absensi';
+
+    protected static ?string $pluralModelLabel = 'Data Absensi';
+
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::ClipboardDocumentList;
+
+    protected static string|UnitEnum|null $navigationGroup = 'Presensi & Pengajuan';
+
+    protected static ?int $navigationSort = 2;
+
+    public static function canViewAny(): bool
+    {
+        return (bool) auth()->user()?->hasRole('Superadmin');
+    }
+
+    public static function form(Schema $schema): Schema
+    {
+        return $schema
+            ->components([
+                Section::make('Informasi Absensi')
+                    ->schema([
+                        Grid::make(2)->schema([
+                            DateTimePicker::make('check_in')
+                                ->label('Waktu Check In')
+                                ->nullable()
+                                ->seconds(false),
+
+                            DateTimePicker::make('check_out')
+                                ->label('Waktu Check Out')
+                                ->nullable()
+                                ->seconds(false),
+
+                            Select::make('status')
+                                ->label('Status')
+                                ->options(AttendanceStatus::class)
+                                ->required(),
+
+                            TextInput::make('late_minutes')
+                                ->label('Keterlambatan (menit)')
+                                ->numeric()
+                                ->default(0)
+                                ->minValue(0),
+                        ]),
+
+                        Textarea::make('notes')
+                            ->label('Catatan / Keterangan')
+                            ->nullable()
+                            ->columnSpanFull(),
+                    ]),
+            ]);
+    }
+
+    public static function table(Table $table): Table
+    {
+        return $table
+            ->columns([
+                TextColumn::make('worker_name')
+                    ->label('Nama')
+                    ->state(function (Attendance $record): string {
+                        return $record->employee?->full_name
+                            ?? $record->intern?->full_name
+                            ?? $record->freelancer?->full_name
+                            ?? '—';
+                    })
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query->where(function (Builder $q) use ($search) {
+                            $q->whereHas('employee', fn ($e) => $e->where('full_name', 'like', "%{$search}%"))
+                                ->orWhereHas('intern', fn ($i) => $i->where('full_name', 'like', "%{$search}%"))
+                                ->orWhereHas('freelancer', fn ($f) => $f->where('full_name', 'like', "%{$search}%"));
+                        });
+                    })
+                    ->sortable(query: fn (Builder $query, string $direction) => $query),
+
+                BadgeColumn::make('worker_type')
+                    ->label('Tipe')
+                    ->state(function (Attendance $record): string {
+                        if ($record->employee_id) {
+                            return 'Karyawan';
+                        }
+                        if ($record->intern_id) {
+                            return 'Magang';
+                        }
+
+                        return 'Freelance';
+                    })
+                    ->color(function (Attendance $record): string {
+                        if ($record->employee_id) {
+                            return 'primary';
+                        }
+                        if ($record->intern_id) {
+                            return 'info';
+                        }
+
+                        return 'warning';
+                    }),
+
+                TextColumn::make('company_name')
+                    ->label('Perusahaan')
+                    ->state(function (Attendance $record): string {
+                        return $record->employee?->company?->name
+                            ?? $record->intern?->company?->name
+                            ?? $record->freelancer?->company?->name
+                            ?? '—';
+                    }),
+
+                TextColumn::make('date')
+                    ->label('Tanggal')
+                    ->date('d M Y')
+                    ->sortable(),
+
+                TextColumn::make('check_in')
+                    ->label('Check In')
+                    ->time('H:i')
+                    ->sortable(),
+
+                TextColumn::make('check_out')
+                    ->label('Check Out')
+                    ->time('H:i')
+                    ->placeholder('—'),
+
+                BadgeColumn::make('status')
+                    ->label('Status')
+                    ->formatStateUsing(fn (AttendanceStatus $state): string => $state->getLabel())
+                    ->color(fn (AttendanceStatus $state): string => $state->getColor()),
+
+                TextColumn::make('late_minutes')
+                    ->label('Terlambat')
+                    ->formatStateUsing(fn (?int $state): string => $state ? "{$state} mnt" : '—')
+                    ->sortable(),
+
+                ImageColumn::make('check_in_photo')
+                    ->label('Foto Masuk')
+                    ->circular()
+                    ->disk('public')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                ImageColumn::make('check_out_photo')
+                    ->label('Foto Keluar')
+                    ->circular()
+                    ->disk('public')
+                    ->toggleable(isToggledHiddenByDefault: true),
+            ])
+            ->defaultSort('date', 'desc')
+            ->filters([
+                SelectFilter::make('worker_type')
+                    ->label('Tipe Worker')
+                    ->options([
+                        'employee' => 'Karyawan',
+                        'intern' => 'Magang',
+                        'freelancer' => 'Freelance',
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return match ($data['value'] ?? null) {
+                            'employee' => $query->whereNotNull('employee_id'),
+                            'intern' => $query->whereNotNull('intern_id'),
+                            'freelancer' => $query->whereNotNull('freelancer_id'),
+                            default => $query,
+                        };
+                    }),
+
+                SelectFilter::make('status')
+                    ->label('Status')
+                    ->options(AttendanceStatus::class),
+
+                SelectFilter::make('company')
+                    ->label('Perusahaan')
+                    ->options(fn () => Company::pluck('name', 'id'))
+                    ->query(function (Builder $query, array $data): Builder {
+                        $companyId = $data['value'] ?? null;
+                        if (! $companyId) {
+                            return $query;
+                        }
+
+                        return $query->where(function (Builder $q) use ($companyId) {
+                            $q->whereHas('employee', fn ($e) => $e->where('company_id', $companyId))
+                                ->orWhereHas('intern', fn ($i) => $i->where('company_id', $companyId))
+                                ->orWhereHas('freelancer', fn ($f) => $f->where('company_id', $companyId));
+                        });
+                    }),
+
+                Filter::make('date_range')
+                    ->label('Rentang Tanggal')
+                    ->form([
+                        DatePicker::make('date_from')
+                            ->label('Dari Tanggal'),
+                        DatePicker::make('date_until')
+                            ->label('Sampai Tanggal'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when($data['date_from'], fn ($q, $date) => $q->whereDate('date', '>=', $date))
+                            ->when($data['date_until'], fn ($q, $date) => $q->whereDate('date', '<=', $date));
+                    }),
+
+                Filter::make('is_corrected')
+                    ->label('Sudah Dikoreksi')
+                    ->query(fn (Builder $query) => $query->where('is_corrected', true))
+                    ->toggle(),
+            ])
+            ->actions([
+                ViewAction::make(),
+                EditAction::make()->label('Override'),
+            ])
+            ->bulkActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make(),
+                ]),
+            ])
+            ->with(['employee.company', 'intern.company', 'freelancer.company']);
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListAttendances::route('/'),
+            'edit' => Pages\EditAttendance::route('/{record}/edit'),
+        ];
+    }
+}

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Enums\AttendanceStatus;
 use App\Models\Attendance;
 use App\Models\CompanyPolicy;
 use App\Services\GeofenceService;
@@ -43,25 +44,11 @@ class AbsenHariIni extends Page
     {
         $user = auth()->user();
 
-        if ($user?->employee) {
-            return Attendance::where('employee_id', $user->employee->id)
-                ->whereDate('date', today())
-                ->first();
+        if (! $user) {
+            return null;
         }
 
-        if ($user?->intern) {
-            return Attendance::where('intern_id', $user->intern->id)
-                ->whereDate('date', today())
-                ->first();
-        }
-
-        if ($user?->freelancer) {
-            return Attendance::where('freelancer_id', $user->freelancer->id)
-                ->whereDate('date', today())
-                ->first();
-        }
-
-        return null;
+        return Attendance::byWorker($user)->today()->first();
     }
 
     protected function getLinkedProfile(): mixed
@@ -160,11 +147,11 @@ class AbsenHariIni extends Page
 
                 $shiftStartThreshold = now()->setTimeFromTimeString($workStartTimeStr)->addMinutes($lateToleranceMinutes);
 
-                $status = 'on_time';
+                $status = AttendanceStatus::OnTime;
                 $lateMinutes = 0;
 
                 if ($now->greaterThan($shiftStartThreshold)) {
-                    $status = 'late';
+                    $status = AttendanceStatus::Late;
                     $lateMinutes = (int) $now->diffInMinutes(now()->setTimeFromTimeString($workStartTimeStr));
                 }
 
@@ -184,7 +171,7 @@ class AbsenHariIni extends Page
 
                 Notification::make()
                     ->title('Check In Berhasil!')
-                    ->body("Waktu Check In: {$now->format('H:i:s')} WIB (".($status === 'late' ? "Terlambat {$lateMinutes} menit" : 'Tepat Waktu').')')
+                    ->body("Waktu Check In: {$now->format('H:i:s')} WIB (".($status === AttendanceStatus::Late ? "Terlambat {$lateMinutes} menit" : 'Tepat Waktu').')')
                     ->success()
                     ->send();
             });

@@ -56,15 +56,17 @@ class InternAccessTest extends TestCase
         $this->assertTrue(AttendanceCorrectionResource::shouldRegisterNavigation());
         $this->assertTrue(AttendanceCorrectionResource::canViewAny());
 
-        // Hidden for Interns
-        $this->assertFalse(LeaveRequestResource::shouldRegisterNavigation());
-        $this->assertFalse(LeaveRequestResource::canViewAny());
-        $this->assertFalse(LeaveRequestResource::canCreate());
+        // Interns CAN now see leave and overtime resources (design change: all worker types supported)
+        // but CANNOT create because they need 'Employee' role — user factory creates user without role by default
+        $this->assertTrue(LeaveRequestResource::shouldRegisterNavigation());
+        $this->assertTrue(LeaveRequestResource::canViewAny());
+        $this->assertFalse(LeaveRequestResource::canCreate()); // requires 'Employee' role
 
-        $this->assertFalse(OvertimeRequestResource::shouldRegisterNavigation());
-        $this->assertFalse(OvertimeRequestResource::canViewAny());
-        $this->assertFalse(OvertimeRequestResource::canCreate());
+        $this->assertTrue(OvertimeRequestResource::shouldRegisterNavigation());
+        $this->assertTrue(OvertimeRequestResource::canViewAny());
+        $this->assertFalse(OvertimeRequestResource::canCreate()); // requires 'Employee' role
 
+        // Still hidden for Interns
         $this->assertFalse(ResignationResource::shouldRegisterNavigation());
         $this->assertFalse(ResignationResource::canViewAny());
 

@@ -51,23 +51,11 @@ class LeaveRequestResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        $user = auth()->user();
-
-        if ($user?->intern !== null) {
-            return false;
-        }
-
-        return ! ($user?->hasRole('Superadmin') ?? false);
+        return ! (auth()->user()?->hasRole('Superadmin') ?? false);
     }
 
     public static function canViewAny(): bool
     {
-        $user = auth()->user();
-
-        if ($user?->intern !== null) {
-            return false;
-        }
-
         return true;
     }
 
@@ -75,10 +63,7 @@ class LeaveRequestResource extends Resource
     {
         $user = auth()->user();
 
-        if ($user?->intern !== null) {
-            return false;
-        }
-
+        // Allow employees, interns, and freelancers with the Employee role
         return $user?->hasAnyRole(['Employee', 'BOD']) ?? false;
     }
 
@@ -111,6 +96,8 @@ class LeaveRequestResource extends Resource
         }
 
         $employee = $user->employee;
+        $intern = $user->intern;
+        $freelancer = $user->freelancer;
         $isApprover = $user->hasAnyRole(['Approver', 'BOD']);
 
         if ($isApprover) {
@@ -124,23 +111,43 @@ class LeaveRequestResource extends Resource
                 ->pluck('company_id')
                 ->toArray();
 
-            return $query->whereHas('employee', function ($q) use ($divisionIds, $companyIds, $employee) {
-                $q->where(function ($sub) use ($divisionIds, $companyIds, $employee) {
-                    if (! empty($divisionIds)) {
-                        $sub->whereIn('division_id', $divisionIds);
-                    }
-                    if (! empty($companyIds)) {
-                        $sub->orWhereIn('company_id', $companyIds);
-                    }
-                    if ($employee) {
-                        $sub->orWhere('id', $employee->id);
-                    }
+            return $query->where(function (Builder $q) use ($divisionIds, $companyIds, $employee) {
+                // See records from scoped employees
+                $q->whereHas('employee', function ($eq) use ($divisionIds, $companyIds, $employee) {
+                    $eq->where(function ($sub) use ($divisionIds, $companyIds, $employee) {
+                        if (! empty($divisionIds)) {
+                            $sub->whereIn('division_id', $divisionIds);
+                        }
+                        if (! empty($companyIds)) {
+                            $sub->orWhereIn('company_id', $companyIds);
+                        }
+                        if ($employee) {
+                            $sub->orWhere('id', $employee->id);
+                        }
+                    });
                 });
+
+                // Also see intern/freelancer records from same scope
+                if (! empty($divisionIds)) {
+                    $q->orWhereHas('intern', fn ($iq) => $iq->whereIn('division_id', $divisionIds))
+                        ->orWhereHas('freelancer', fn ($fq) => $fq->whereIn('division_id', $divisionIds));
+                }
             });
         }
 
+        // Regular employee sees only their own records
         if ($employee) {
             return $query->where('employee_id', $employee->id);
+        }
+
+        // Intern sees their own records
+        if ($intern) {
+            return $query->where('intern_id', $intern->id);
+        }
+
+        // Freelancer sees their own records
+        if ($freelancer) {
+            return $query->where('freelancer_id', $freelancer->id);
         }
 
         return $query->whereRaw('1 = 0');
@@ -197,9 +204,11 @@ class LeaveRequestResource extends Resource
                                 ->disk('s3')
                                 ->visibility('public')
                                 ->getUploadedFileNameForStorageUsing(function (TemporaryUploadedFile $file): string {
-                                    $employeeCode = auth()->user()?->employee?->employee_code ?? auth()->id();
+                                    $user = auth()->user();
+                                    $workerProfile = $user?->employee ?? $user?->intern ?? $user?->freelancer;
+                                    $identifier = (string) ($workerProfile?->id ?? $user?->id ?? 'unknown');
 
-                                    return FileNamingService::generateFileName('LEAVE', (string) $employeeCode, $file);
+                                    return FileNamingService::generateFileName('LEAVE', $identifier, $file);
                                 })
                                 ->columnSpanFull(),
 
@@ -222,10 +231,22 @@ class LeaveRequestResource extends Resource
 
         return $table
             ->columns([
-                TextColumn::make('employee.full_name')
-                    ->label('Nama Karyawan')
-                    ->searchable()
-                    ->sortable(),
+                TextColumn::make('worker_name')
+                    ->label('Nama Pemohon')
+                    ->state(function (LeaveRequest $record): string {
+                        return $record->employee?->full_name
+                            ?? $record->intern?->full_name
+                            ?? $record->freelancer?->full_name
+                            ?? '—';
+                    })
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        return $query->where(function (Builder $q) use ($search) {
+                            $q->whereHas('employee', fn ($e) => $e->where('full_name', 'like', "%{$search}%"))
+                                ->orWhereHas('intern', fn ($i) => $i->where('full_name', 'like', "%{$search}%"))
+                                ->orWhereHas('freelancer', fn ($f) => $f->where('full_name', 'like', "%{$search}%"));
+                        });
+                    })
+                    ->sortable(query: fn (Builder $query, string $direction) => $query),
 
                 BadgeColumn::make('leave_type')
                     ->label('Jenis Cuti')
@@ -273,7 +294,7 @@ class LeaveRequestResource extends Resource
                 Action::make('lacakProgres')
                     ->label('Lacak Progres')
                     ->color('info')
-                    ->visible(fn (LeaveRequest $record): bool => auth()->user()?->canTrackApprovalProgressFor($record->employee) ?? false)
+                    ->visible(fn (LeaveRequest $record): bool => true)
                     ->modalHeading('Progres Approval Transparan')
                     ->modalDescription('Melacak status persetujuan di setiap tahap secara real-time.')
                     ->modalSubmitAction(false)
