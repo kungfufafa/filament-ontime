@@ -264,4 +264,8 @@ Menambahkan komponen peta interaktif **OpenStreetMap (Leaflet)** ke form lokasi 
 - `app/Exports/AttendanceReportExport.php`
 - `WORK_LOG.md`
 
+### Commit
+- `52cac8c`: `feat: tambah map picker interaktif OpenStreetMap dan perbaikan laporan absensi (foto S3 & lokasi GPS)`
+
+
 
