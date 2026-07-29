@@ -66,7 +66,7 @@ class AttendanceApiController extends Controller
                 'attendance/photos',
                 'ATT_IN',
                 $identifier,
-                'public'
+                config('filesystems.default')
             );
         }
 
@@ -162,7 +162,7 @@ class AttendanceApiController extends Controller
                 'attendance/photos',
                 'ATT_OUT',
                 $identifier,
-                'public'
+                config('filesystems.default')
             );
         }
 
