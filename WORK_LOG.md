@@ -171,6 +171,17 @@ Dokumen ini mencatat seluruh rekam jejak perkembangan pengerjaan fitur, arsitekt
 
 ---
 
+## 🎲 FASE 9: Generasi Database Demo & Seeding
+
+- **Database Demo Seeder**:
+  - Dijalankan `php artisan db:seed --class=DemoSeeder` (memanggil `DatabaseSeeder`, `ProductionSeeder`, `RoleSeeder`, `CompanyLocationSeeder`, dan `AttendanceSeeder`).
+  - Mengisi data perusahaan, lokasi geofence kantor, alur approval, akun Superadmin, BOD, Approver, Karyawan, Anak Magang (SMK Wikrama Bogor), Freelancer, serta sampel data absensi untuk pengujian chart & tabel.
+- **Perbaikan Bug Laporan Absensi (`LaporanAbsensi.php`)**:
+  - Memperbaiki `TypeError: Argument #1 ($state) must be of type string, App\Enums\AttendanceStatus given`.
+  - Menyesuaikan penanganan typehint pada kolom `status` agar mendukung `AttendanceStatus` enum object maupun `string`.
+
+---
+
 ## 📊 Status Pengujian & Verifikasi Aplikasi
 - **Automated Tests**: 46 passed (165 assertions)
 - **Browser Subagent Visual Verification**: Verified 100% (Navigasi Sidebar 5 Kelompok, Helper Text Reaktif, Modal Akun User, Kolom Offboarding, & Filter Posisi per Divisi)
@@ -191,3 +202,66 @@ Dokumen ini mencatat seluruh rekam jejak perkembangan pengerjaan fitur, arsitekt
 
 ---
 *Catatan: Dokumen ini disimpan secara lokal dan diperbarui secara berkala pada setiap penyelesaian tugas/prompt.*
+
+---
+
+## 🗺️ FITUR: Map Picker Interaktif untuk Lokasi & Cabang
+
+**Tanggal**: 2026-07-29
+
+### Deskripsi
+Menambahkan komponen peta interaktif **OpenStreetMap (Leaflet)** ke form lokasi perusahaan. Tersedia dua metode pengambilan koordinat:
+1. **Cari Alamat** — ketik nama tempat/kota → Nominatim geocoding API (gratis, tanpa API key) → marker bergerak ke lokasi
+2. **GPS Saya** — tombol deteksi posisi perangkat saat ini via `navigator.geolocation` dengan akurasi tinggi (`enableHighAccuracy: true`)
+3. **Klik/Drag Marker** — presisi manual langsung di peta
+4. **Gunakan Lokasi Ini** — tekan tombol untuk mengisi field `latitude` & `longitude` di form Filament secara otomatis
+
+### File Baru
+- `app/Filament/Forms/Components/MapPickerField.php` — Custom Filament `Field`, `dehydrated(false)` (UI-only, tidak disimpan sendiri)
+- `resources/views/filament/forms/components/map-picker-field.blade.php` — Blade view dengan Alpine.js + Leaflet CDN
+
+### File Diubah
+- `app/Filament/Resources/CompanyResource.php`:
+  - Tambah `MapPickerField` di Section **"Koordinat GPS Utama / HQ"** (tab Informasi Utama)
+  - Tambah `MapPickerField` di dalam `Repeater` "Lokasi & Cabang" (tab Multi-Geofence)
+- `app/Filament/Resources/CompanyLocationResource.php`:
+  - Tambah `MapPickerField` di form lokasi cabang
+
+### Teknologi
+- **Leaflet.js 1.9.4** via CDN — render peta OSM
+- **Nominatim API** (api.openstreetmap.org) — geocoding gratis tanpa API key
+- **Browser Geolocation API** — deteksi GPS perangkat
+- **Alpine.js + `$wire.set()`** — push koordinat ke Filament form fields
+
+### Verifikasi
+- ✅ Map render di tab "Informasi Utama" (HQ section)
+- ✅ Map render di dalam Repeater tab "Lokasi & Cabang"
+- ✅ Map render di form CompanyLocationResource
+- ✅ Search alamat berfungsi (Nominatim)
+- ✅ Marker draggable & klik peta memperbarui koordinat
+- ✅ "Gunakan Lokasi Ini" mengisi field latitude & longitude
+
+---
+
+## 📊 FITUR: Perbaikan Foto & Kolom Kondisional Lokasi GPS pada Laporan Absensi
+
+**Tanggal**: 2026-07-29
+
+### Deskripsi
+1. **Perbaikan Tampilan Foto Check-In / Check-Out**:
+   - Mengubah `disk('s3')` pada `LaporanAbsensi.php` menjadi `config('filesystems.default')` agar foto yang tersimpan di disk lokal/public maupun S3 dapat dirender dengan benar.
+   - Mendukung format path relatif storage maupun URL langsung.
+2. **Kolom Kondisional Lokasi GPS**:
+   - Menambahkan metode `isGpsRequiredInPolicy()` untuk mengecek apakah kebijakan perusahaan (`CompanyPolicy`) mengaktifkan kewajiban GPS (`require_gps`).
+   - Menambahkan kolom **Lokasi GPS (In / Out)** pada tabel Laporan Absensi yang otomatis muncul apabila aturan `require_gps` aktif.
+   - Kolom menampilkan koordinat Check-In & Check-Out dan memiliki link interaktif yang ketika diklik akan langsung membuka lokasi di **OpenStreetMap** pada tab baru.
+3. **Ekspor Excel (`AttendanceReportExport.php`)**:
+   - Menambahkan kolom koordinat `GPS Check-In` dan `GPS Check-Out` pada hasil unduhan rekap Excel.
+   - Memperbaiki penanganan disk gambar agar ekspor foto di Excel tidak error saat menggunakan disk lokal.
+
+### File Diubah
+- `app/Filament/Pages/LaporanAbsensi.php`
+- `app/Exports/AttendanceReportExport.php`
+- `WORK_LOG.md`
+
+

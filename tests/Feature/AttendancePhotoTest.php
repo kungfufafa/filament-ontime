@@ -31,6 +31,6 @@ class AttendancePhotoTest extends TestCase
 
         $path = $response->json('path');
         $this->assertNotNull($path);
-        Storage::disk('s3')->assertExists($path);
+        Storage::disk(config('filesystems.default'))->assertExists($path);
     }
 }

@@ -17,6 +17,8 @@ class AttendancePhotoController extends Controller
             $user = $request->user();
             $employeeCode = $user?->employee?->employee_code ?? (string) ($user?->id ?? 'ANONYMOUS');
 
+            $disk = config('filesystems.default');
+
             // Option 1: File upload via FormData ('photo')
             if ($request->hasFile('photo')) {
                 $file = $request->file('photo');
@@ -26,13 +28,17 @@ class AttendancePhotoController extends Controller
                         'attendance-photos',
                         'ATT',
                         $employeeCode,
-                        's3'
+                        $disk
                     );
+
+                    $url = $disk === 's3'
+                        ? Storage::disk('s3')->temporaryUrl($path, now()->addMinutes(60))
+                        : Storage::disk($disk)->url($path);
 
                     return response()->json([
                         'success' => true,
                         'path' => $path,
-                        'url' => Storage::disk('s3')->temporaryUrl($path, now()->addMinutes(60)),
+                        'url' => $url,
                     ]);
                 }
 
@@ -58,12 +64,16 @@ class AttendancePhotoController extends Controller
                 if ($decoded !== false && strlen($decoded) > 0) {
                     $filename = FileNamingService::generateFileName('ATT', $employeeCode, 'selfie.jpg');
                     $path = 'attendance-photos/'.$filename;
-                    Storage::disk('s3')->put($path, $decoded);
+                    Storage::disk($disk)->put($path, $decoded);
+
+                    $url = $disk === 's3'
+                        ? Storage::disk('s3')->temporaryUrl($path, now()->addMinutes(60))
+                        : Storage::disk($disk)->url($path);
 
                     return response()->json([
                         'success' => true,
                         'path' => $path,
-                        'url' => Storage::disk('s3')->temporaryUrl($path, now()->addMinutes(60)),
+                        'url' => $url,
                     ]);
                 }
             }

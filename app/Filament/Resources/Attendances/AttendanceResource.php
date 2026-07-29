@@ -166,13 +166,13 @@ class AttendanceResource extends Resource
                 ImageColumn::make('check_in_photo')
                     ->label('Foto Masuk')
                     ->circular()
-                    ->disk('public')
+                    ->disk(config('filesystems.default'))
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 ImageColumn::make('check_out_photo')
                     ->label('Foto Keluar')
                     ->circular()
-                    ->disk('public')
+                    ->disk(config('filesystems.default'))
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('date', 'desc')
@@ -241,7 +241,7 @@ class AttendanceResource extends Resource
                     DeleteBulkAction::make(),
                 ]),
             ])
-            ->with(['employee.company', 'intern.company', 'freelancer.company']);
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['employee.company', 'intern.company', 'freelancer.company']));
     }
 
     public static function getPages(): array

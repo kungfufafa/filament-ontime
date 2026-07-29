@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Forms\Components\MapPickerField;
 use App\Filament\Resources\CompanyResource\Pages;
 use App\Models\Company;
 use BackedEnum;
@@ -105,6 +106,11 @@ class CompanyResource extends Resource
                                                 ->numeric()
                                                 ->placeholder('Contoh: 106.8271528'),
                                         ]),
+
+                                        MapPickerField::make('hq_map_picker')
+                                            ->label('Pilih Koordinat HQ di Peta')
+                                            ->latField('latitude')
+                                            ->lngField('longitude'),
                                     ])
                                     ->collapsible(),
                             ]),
@@ -161,6 +167,11 @@ class CompanyResource extends Resource
                                                         ->label('Alamat Cabang')
                                                         ->rows(2)
                                                         ->columnSpanFull(),
+
+                                                    MapPickerField::make('map_picker')
+                                                        ->label('Pilih Koordinat di Peta')
+                                                        ->latField('latitude')
+                                                        ->lngField('longitude'),
                                                 ]),
                                             ])
                                             ->defaultItems(0)

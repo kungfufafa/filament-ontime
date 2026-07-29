@@ -2,10 +2,12 @@
 
 namespace App\Filament\Pages;
 
+use App\Enums\AttendanceStatus;
 use App\Exports\AttendanceReportExport;
 use App\Models\Approver;
 use App\Models\Attendance;
 use App\Models\Company;
+use App\Models\CompanyPolicy;
 use App\Models\Division;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -298,27 +300,59 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
 
                 ImageColumn::make('check_in_photo')
                     ->label('Foto Check-In')
-                    ->disk('s3')
+                    ->disk(config('filesystems.default'))
                     ->square()
-                    ->size(36)
+                    ->size(40)
                     ->defaultImageUrl(null),
 
                 ImageColumn::make('check_out_photo')
                     ->label('Foto Check-Out')
-                    ->disk('s3')
+                    ->disk(config('filesystems.default'))
                     ->square()
-                    ->size(36)
+                    ->size(40)
                     ->defaultImageUrl(null),
+
+                TextColumn::make('lokasi_gps')
+                    ->label('Lokasi GPS (In / Out)')
+                    ->visible(fn ($livewire): bool => $livewire->isGpsRequiredInPolicy())
+                    ->state(function (Attendance $record): string {
+                        $in = ($record->check_in_lat && $record->check_in_lng)
+                            ? "In: {$record->check_in_lat}, {$record->check_in_lng}"
+                            : null;
+                        $out = ($record->check_out_lat && $record->check_out_lng)
+                            ? "Out: {$record->check_out_lat}, {$record->check_out_lng}"
+                            : null;
+
+                        if (! $in && ! $out) {
+                            return '-';
+                        }
+
+                        return implode(' | ', array_filter([$in, $out]));
+                    })
+                    ->description(function (Attendance $record): ?string {
+                        if ($record->check_in_lat && $record->check_in_lng) {
+                            return 'Klik koordinat untuk lihat di peta';
+                        }
+
+                        return null;
+                    })
+                    ->url(function (Attendance $record): ?string {
+                        if ($record->check_in_lat && $record->check_in_lng) {
+                            return "https://www.openstreetmap.org/?mlat={$record->check_in_lat}&mlon={$record->check_in_lng}#map=17/{$record->check_in_lat}/{$record->check_in_lng}";
+                        }
+
+                        return null;
+                    }, shouldOpenInNewTab: true),
 
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
+                    ->color(fn ($state): string => match ($state instanceof AttendanceStatus ? $state->value : (string) $state) {
                         'late' => 'warning',
                         'leave' => 'info',
                         default => 'success',
                     })
-                    ->formatStateUsing(fn (Attendance $record): string => match ($record->status) {
+                    ->formatStateUsing(fn (Attendance $record): string => match ($record->status instanceof AttendanceStatus ? $record->status->value : (string) $record->status) {
                         'late' => "Terlambat ({$record->late_minutes}m)",
                         'leave' => 'Cuti / Izin',
                         default => 'Hadir',
@@ -344,6 +378,18 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
                     ->modalCancelActionLabel('Tutup')
                     ->visible(fn (Attendance $record): bool => ! empty($record->check_in_photo) || ! empty($record->check_out_photo)),
             ]);
+    }
+
+    public function isGpsRequiredInPolicy(): bool
+    {
+        $companyId = $this->filterData['company_id'] ?? null;
+        if ($companyId) {
+            $company = Company::find($companyId);
+
+            return (bool) ($company?->policy?->require_gps ?? false);
+        }
+
+        return CompanyPolicy::where('require_gps', true)->exists();
     }
 
     public function getReportDataProperty(): Collection
