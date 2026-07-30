@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\V1\LeaveRequestApiController;
 use App\Http\Controllers\Api\V1\OvertimeRequestApiController;
 use Illuminate\Support\Facades\Route;
 
+Route::post('/webhooks/employees', [\App\Http\Controllers\Api\EmployeeWebhookController::class, 'handle']);
+
 Route::prefix('v1')->group(function () {
 
     // Auth Routes
