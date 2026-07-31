@@ -32,7 +32,7 @@ class AttendancePhotoController extends Controller
                     );
 
                     $url = $disk === 's3'
-                        ? Storage::disk('s3')->temporaryUrl($path, now()->addMinutes(60))
+                        ? Storage::disk($disk)->temporaryUrl($path, now()->addMinutes(60))
                         : Storage::disk($disk)->url($path);
 
                     return response()->json([
@@ -67,7 +67,7 @@ class AttendancePhotoController extends Controller
                     Storage::disk($disk)->put($path, $decoded);
 
                     $url = $disk === 's3'
-                        ? Storage::disk('s3')->temporaryUrl($path, now()->addMinutes(60))
+                        ? Storage::disk($disk)->temporaryUrl($path, now()->addMinutes(60))
                         : Storage::disk($disk)->url($path);
 
                     return response()->json([
