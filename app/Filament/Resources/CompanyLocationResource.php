@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Forms\Components\MapPickerField;
 use App\Filament\Resources\CompanyLocationResource\Pages;
 use App\Models\Company;
 use App\Models\CompanyLocation;
@@ -88,6 +89,11 @@ class CompanyLocationResource extends Resource
                                 ->label('Alamat Lengkap Cabang')
                                 ->rows(3)
                                 ->columnSpanFull(),
+
+                            MapPickerField::make('map_picker')
+                                ->label('Pilih Koordinat di Peta')
+                                ->latField('latitude')
+                                ->lngField('longitude'),
                         ]),
                     ]),
             ]);

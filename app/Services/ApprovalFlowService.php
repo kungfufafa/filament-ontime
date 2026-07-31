@@ -34,7 +34,19 @@ class ApprovalFlowService
             $requestModel->load('employee');
         }
 
-        $companyId = $requestModel->employee?->company_id ?? $requestModel->company_id ?? null;
+        if (method_exists($requestModel, 'intern') && ! $requestModel->relationLoaded('intern')) {
+            $requestModel->load('intern');
+        }
+
+        if (method_exists($requestModel, 'freelancer') && ! $requestModel->relationLoaded('freelancer')) {
+            $requestModel->load('freelancer');
+        }
+
+        $workerProfile = method_exists($requestModel, 'getWorkerProfile')
+            ? $requestModel->getWorkerProfile()
+            : $requestModel->employee;
+
+        $companyId = $workerProfile?->company_id ?? $requestModel->company_id ?? null;
 
         if (! $companyId) {
             throw ValidationException::withMessages([
@@ -76,10 +88,14 @@ class ApprovalFlowService
         ]);
 
         // Send In-App Notifications to Authorized Approvers
+        $workerName = method_exists($requestModel, 'getWorkerProfile')
+            ? ($requestModel->getWorkerProfile()?->full_name ?? 'Pengguna')
+            : ($requestModel->employee?->full_name ?? 'Pengguna');
+
         foreach ($this->getUsersAuthorizedForCurrentStep($requestModel) as $approverUser) {
             Notification::make()
                 ->title('Pengajuan Baru Membutuhkan Persetujuan Anda')
-                ->body("Pengajuan {$requestType} dari {$requestModel->employee?->full_name} menunggu persetujuan Anda.")
+                ->body("Pengajuan {$requestType} dari {$workerName} menunggu persetujuan Anda.")
                 ->icon('heroicon-o-bell')
                 ->color('warning')
                 ->sendToDatabase($approverUser);
@@ -124,18 +140,22 @@ class ApprovalFlowService
                 return true;
             }
 
-            $employee = $requestModel->employee;
-            if (! $employee) {
+            // Resolve the worker profile to get company/division scope
+            $workerProfile = method_exists($requestModel, 'getWorkerProfile')
+                ? $requestModel->getWorkerProfile()
+                : $requestModel->employee;
+
+            if (! $workerProfile) {
                 return false;
             }
 
             return Approver::query()
                 ->where('user_id', $user->id)
-                ->where(function ($query) use ($employee) {
-                    $query->where('division_id', $employee->division_id)
-                        ->orWhere(function ($q) use ($employee) {
+                ->where(function ($query) use ($workerProfile) {
+                    $query->where('division_id', $workerProfile->division_id)
+                        ->orWhere(function ($q) use ($workerProfile) {
                             $q->whereNull('division_id')
-                                ->where('company_id', $employee->company_id);
+                                ->where('company_id', $workerProfile->company_id);
                         });
                 })
                 ->exists();
@@ -177,10 +197,14 @@ class ApprovalFlowService
             ]);
 
             // Notify next step approvers
+            $workerNameNext = method_exists($requestModel, 'getWorkerProfile')
+                ? ($requestModel->getWorkerProfile()?->full_name ?? 'Pengguna')
+                : ($requestModel->employee?->full_name ?? 'Pengguna');
+
             foreach ($this->getUsersAuthorizedForCurrentStep($requestModel) as $nextApprover) {
                 Notification::make()
                     ->title("Pengajuan Membutuhkan Persetujuan Tahap {$requestModel->current_step}")
-                    ->body("Pengajuan dari {$requestModel->employee?->full_name} telah diproses ke tahap Anda.")
+                    ->body("Pengajuan dari {$workerNameNext} telah diproses ke tahap Anda.")
                     ->icon('heroicon-o-bell')
                     ->color('info')
                     ->sendToDatabase($nextApprover);

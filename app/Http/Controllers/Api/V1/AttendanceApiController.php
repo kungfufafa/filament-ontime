@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\AttendanceStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\CheckInRequest;
 use App\Http\Requests\Api\V1\CheckOutRequest;
@@ -27,21 +28,10 @@ class AttendanceApiController extends Controller
             return response()->json(['message' => 'Profile absensi tidak ditemukan.'], 422);
         }
 
-        $todayAttendance = Attendance::query()
-            ->where(function ($q) use ($employee, $intern, $freelancer) {
-                if ($employee) {
-                    $q->where('employee_id', $employee->id);
-                } elseif ($intern) {
-                    $q->where('intern_id', $intern->id);
-                } elseif ($freelancer) {
-                    $q->where('freelancer_id', $freelancer->id);
-                }
-            })
-            ->whereDate('date', today())
-            ->first();
+        $todayAttendance = Attendance::byWorker($user)->whereDate('date', today())->first();
 
         if ($todayAttendance && $todayAttendance->check_in) {
-            return response()->json(['message' => 'Sudah melakukan check in hari ini.'], 422);
+            return response()->json(['message' => 'Sudah melakukan check in hari ini.'], 409);
         }
 
         $company = $profile->company;
@@ -76,7 +66,7 @@ class AttendanceApiController extends Controller
                 'attendance/photos',
                 'ATT_IN',
                 $identifier,
-                'public'
+                config('filesystems.default')
             );
         }
 
@@ -86,11 +76,11 @@ class AttendanceApiController extends Controller
         $toleranceMinutes = $policy?->late_tolerance_minutes ?? 15;
         $lateThreshold = (clone $workStart)->addMinutes($toleranceMinutes);
 
-        $status = 'on_time';
+        $status = AttendanceStatus::OnTime;
         $lateMinutes = 0;
 
         if ($now->greaterThan($lateThreshold)) {
-            $status = 'late';
+            $status = AttendanceStatus::Late;
             $lateMinutes = (int) $workStart->diffInMinutes($now);
         }
 
@@ -130,25 +120,14 @@ class AttendanceApiController extends Controller
             return response()->json(['message' => 'Profile absensi tidak ditemukan.'], 422);
         }
 
-        $attendance = Attendance::query()
-            ->where(function ($q) use ($employee, $intern, $freelancer) {
-                if ($employee) {
-                    $q->where('employee_id', $employee->id);
-                } elseif ($intern) {
-                    $q->where('intern_id', $intern->id);
-                } elseif ($freelancer) {
-                    $q->where('freelancer_id', $freelancer->id);
-                }
-            })
-            ->whereDate('date', today())
-            ->first();
+        $attendance = Attendance::byWorker($user)->whereDate('date', today())->first();
 
         if (! $attendance || ! $attendance->check_in) {
             return response()->json(['message' => 'Anda belum melakukan check in hari ini.'], 422);
         }
 
         if ($attendance->check_out) {
-            return response()->json(['message' => 'Sudah melakukan check out hari ini.'], 422);
+            return response()->json(['message' => 'Sudah melakukan check out hari ini.'], 409);
         }
 
         $company = $profile->company;
@@ -183,7 +162,7 @@ class AttendanceApiController extends Controller
                 'attendance/photos',
                 'ATT_OUT',
                 $identifier,
-                'public'
+                config('filesystems.default')
             );
         }
 
