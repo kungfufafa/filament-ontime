@@ -7,7 +7,7 @@
                 $checkInUrl = $record->check_in_photo;
             } else {
                 $checkInUrl = $disk === 's3' 
-                    ? Storage::disk('s3')->temporaryUrl($record->check_in_photo, now()->addMinutes(60))
+                    ? Storage::disk($disk)->temporaryUrl($record->check_in_photo, now()->addMinutes(60))
                     : Storage::disk($disk)->url($record->check_in_photo);
             }
         }
@@ -17,7 +17,7 @@
                 $checkOutUrl = $record->check_out_photo;
             } else {
                 $checkOutUrl = $disk === 's3' 
-                    ? Storage::disk('s3')->temporaryUrl($record->check_out_photo, now()->addMinutes(60))
+                    ? Storage::disk($disk)->temporaryUrl($record->check_out_photo, now()->addMinutes(60))
                     : Storage::disk($disk)->url($record->check_out_photo);
             }
         }

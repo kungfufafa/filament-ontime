@@ -201,7 +201,7 @@ class LeaveRequestResource extends Resource
                                     default => 'Dokumen Pendukung Cuti (Opsional)',
                                 })
                                 ->directory('leave-attachments')
-                                ->disk('s3')
+                                ->disk(config('filesystems.default'))
                                 ->visibility('public')
                                 ->getUploadedFileNameForStorageUsing(function (TemporaryUploadedFile $file): string {
                                     $user = auth()->user();

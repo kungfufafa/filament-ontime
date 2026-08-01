@@ -188,7 +188,7 @@ class="space-y-3">
                         try {
                             $disk = config('filesystems.default');
                             if ($disk === 's3') {
-                                $initialUrl = \Illuminate\Support\Facades\Storage::disk('s3')->temporaryUrl($state, now()->addMinutes(60));
+                                $initialUrl = \Illuminate\Support\Facades\Storage::disk($disk)->temporaryUrl($state, now()->addMinutes(60));
                             } else {
                                 $initialUrl = \Illuminate\Support\Facades\Storage::disk($disk)->url($state);
                             }
