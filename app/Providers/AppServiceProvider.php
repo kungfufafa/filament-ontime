@@ -6,7 +6,7 @@ use App\Services\Core\CoreSsoProvider;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
-use Laravel\Socialite\Contracts\Factory;
+use Laravel\Socialite\Facades\Socialite;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -23,11 +23,12 @@ class AppServiceProvider extends ServiceProvider
             return $user->hasRole('Superadmin') ? true : null;
         });
 
-        $socialite = $this->app->make(Factory::class);
-        $socialite->extend('core', function ($app) use ($socialite) {
-            $config = $app['config']['services.core'];
+        if (class_exists(Socialite::class)) {
+            Socialite::extend('core', function ($app) {
+                $config = $app['config']['services.core'] ?? [];
 
-            return $socialite->buildProvider(CoreSsoProvider::class, $config);
-        });
+                return Socialite::buildProvider(CoreSsoProvider::class, $config);
+            });
+        }
     }
 }
