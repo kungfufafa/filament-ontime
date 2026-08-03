@@ -5,7 +5,7 @@
             if (! $path) return null;
             if (str_starts_with($path, 'http')) return $path;
             return $disk === 's3' 
-                ? Storage::disk('s3')->temporaryUrl($path, now()->addMinutes(60))
+                ? Storage::disk($disk)->temporaryUrl($path, now()->addMinutes(60))
                 : Storage::disk($disk)->url($path);
         };
         $checkInUrl = $getPhotoUrl($record->check_in_photo);

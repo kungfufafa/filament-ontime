@@ -164,7 +164,7 @@ class AttendanceCorrectionResource extends Resource
                             FileUpload::make('attachment')
                                 ->label('Bukti Pendukung / Lampiran (Opsional)')
                                 ->directory('correction-attachments')
-                                ->disk('s3')
+                                ->disk(config('filesystems.default'))
                                 ->visibility('public')
                                 ->getUploadedFileNameForStorageUsing(function (TemporaryUploadedFile $file): string {
                                     $employeeCode = auth()->user()?->employee?->employee_code ?? auth()->id();

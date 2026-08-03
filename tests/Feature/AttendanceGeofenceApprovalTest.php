@@ -28,7 +28,7 @@ class AttendanceGeofenceApprovalTest extends TestCase
     }
 
     private function createEmployee(Company $company): Employee
-    { q
+    {
         $user = User::factory()->create();
         $user->assignRole('Employee');
         $division = Division::create(['company_id' => $company->id, 'name' => 'IT', 'code' => 'IT', 'is_active' => true]);

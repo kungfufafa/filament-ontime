@@ -29,17 +29,12 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
+            ->login(\App\Filament\Pages\Auth\SsoLogin::class)
             ->databaseNotifications()
             ->plugins([
                 MekayaPlugin::make(),
                 FilamentShieldPlugin::make(),
             ])
-            ->renderHook(
-                PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
-                fn (): string => config('services.wag.enabled')
-                    ? view('filament.auth.whatsapp-button')->render()
-                    : '',
-            )
             ->registration(false)
             ->colors([
                 'primary' => Color::Amber,
