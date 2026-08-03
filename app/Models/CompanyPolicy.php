@@ -15,6 +15,9 @@ class CompanyPolicy extends Model
         'late_tolerance_minutes',
         'require_photo',
         'require_gps',
+        'require_face_recognition',
+        'face_match_threshold',
+        'face_fail_action',
         'geofence_latitude',
         'geofence_longitude',
         'geofence_radius_meters',
@@ -29,6 +32,8 @@ class CompanyPolicy extends Model
         return [
             'require_photo' => 'boolean',
             'require_gps' => 'boolean',
+            'require_face_recognition' => 'boolean',
+            'face_match_threshold' => 'integer',
             'geofence_latitude' => 'decimal:7',
             'geofence_longitude' => 'decimal:7',
             'late_tolerance_minutes' => 'integer',

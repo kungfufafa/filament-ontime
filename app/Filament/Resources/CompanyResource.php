@@ -12,6 +12,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -226,6 +227,9 @@ class CompanyResource extends Resource
                         'late_tolerance_minutes' => $record->policy?->late_tolerance_minutes ?? 15,
                         'require_photo' => $record->policy?->require_photo ?? false,
                         'require_gps' => $record->policy?->require_gps ?? false,
+                        'require_face_recognition' => $record->policy?->require_face_recognition ?? false,
+                        'face_match_threshold' => $record->policy?->face_match_threshold ?? 60,
+                        'face_fail_action' => $record->policy?->face_fail_action ?? 'reject',
                         'geofence_radius_meters' => $record->policy?->geofence_radius_meters ?? 100,
                         'annual_leave_quota' => $record->policy?->annual_leave_quota ?? 12,
                         'default_approval_stages' => $record->policy?->default_approval_stages ?? 1,
@@ -245,6 +249,30 @@ class CompanyResource extends Resource
                             ->label('Wajib Lokasi GPS')
                             ->live()
                             ->default(false),
+
+                        Toggle::make('require_face_recognition')
+                            ->label('Wajib Face Recognition (Anti-Spoofing)')
+                            ->live()
+                            ->default(false),
+
+                        TextInput::make('face_match_threshold')
+                            ->label('Ambang Batas Kemiripan Wajah (%)')
+                            ->numeric()
+                            ->minValue(1)
+                            ->maxValue(100)
+                            ->default(60)
+                            ->visible(fn (Get $get) => (bool) $get('require_face_recognition'))
+                            ->required(fn (Get $get) => (bool) $get('require_face_recognition')),
+
+                        Select::make('face_fail_action')
+                            ->label('Tindakan Jika Wajah Tidak Cocok')
+                            ->options([
+                                'reject' => 'Tolak Presensi Langsung',
+                                'approval' => 'Alihkan ke Approval Atasan (Pending)',
+                            ])
+                            ->default('reject')
+                            ->visible(fn (Get $get) => (bool) $get('require_face_recognition'))
+                            ->required(fn (Get $get) => (bool) $get('require_face_recognition')),
 
                         TextInput::make('geofence_radius_meters')
                             ->label('Radius Geofence (Meter)')

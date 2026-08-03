@@ -267,5 +267,219 @@ Menambahkan komponen peta interaktif **OpenStreetMap (Leaflet)** ke form lokasi 
 ### Commit
 - `52cac8c`: `feat: tambah map picker interaktif OpenStreetMap dan perbaikan laporan absensi (foto S3 & lokasi GPS)`
 
+---
+
+## 📍 FITUR: Alur Persetujuan Absensi Luar Geofence (Out of Bounds Attendance Approval)
+
+**Tanggal**: 2026-07-31
+
+### Deskripsi
+1. **Penyimpanan Presensi Luar Geofence**:
+   - Mengubah perlakuan Check In & Check Out yang dilakukan di luar radius geofence lokasi kantor. Daripada memblokir pengguna dengan error validasi / HTTP 422, presensi tetap berhasil disimpan ke tabel `attendances` dengan penanda `is_out_of_bounds = true` dan status `pending_approval` (`AttendanceStatus::PendingApproval`).
+2. **Alur Approval (Geofence)**:
+   - Menambahkan tipe alur persetujuan baru (`request_type = 'geofence'`) pada engine `ApprovalFlowService` dan antarmuka `ApprovalFlowResource`.
+   - Jika Perusahaan belum mengonfigurasi alur khusus di menu Alur Persetujuan, sistem secara otomatis membuat alur persetujuan default 1-tahap ke role `Approver`.
+3. **Persetujuan & Penolakan**:
+   - **Disetujui (Approved)**: Status absensi otomatis dikalkulasikan kembali menjadi `Tepat Waktu (on_time)` atau `Terlambat (late)` berdasarkan jam check-in awal.
+   - **Ditolak (Rejected)**: Status absensi berubah menjadi `Ditolak (rejected)` lengkap dengan catatan alasan penolakan (`rejection_reason`).
+4. **Dukungan Presensi Mandiri Web & Mobile API V1**:
+   - `AbsenHariIni.php` (Web Presensi Mandiri): Notifikasi presensi berhasil dikirim dan menunggu persetujuan atasan.
+   - `AttendanceApiController.php` & `ApprovalApiController.php`: Response JSON presensi berhasil dicatat dengan pesan persetujuan serta pengolahan inbox approval via mobile API.
+   - `AttendanceResource.php` (Filament Admin Resource & API Resource): Menambahkan indikator kolom badge `Luar Geofence` & filter pencarian.
+
+### Skema & Migration Baru
+- `2026_07_31_100000_add_geofence_approval_fields_to_attendances_table.php` (Menambahkan kolom `is_out_of_bounds`, `current_step`, dan `rejection_reason` pada tabel `attendances`).
+
+### File Dibuat & Diubah
+- **Migration**: `database/migrations/2026_07_31_100000_add_geofence_approval_fields_to_attendances_table.php`
+- **Enum**: `app/Enums/AttendanceStatus.php`
+- **Models**: `app/Models/Attendance.php`
+- **Services**: `app/Services/ApprovalFlowService.php`
+- **Filament Resources & Pages**:
+  - `app/Filament/Resources/ApprovalFlows/ApprovalFlowResource.php`
+  - `app/Filament/Resources/ApprovalFlows/Pages/CreateApprovalFlow.php`
+  - `app/Filament/Resources/ApprovalFlows/Pages/EditApprovalFlow.php`
+  - `app/Filament/Resources/Attendances/AttendanceResource.php`
+  - `app/Filament/Pages/AbsenHariIni.php`
+- **API Controllers & Resources**:
+  - `app/Http/Controllers/Api/V1/AttendanceApiController.php`
+  - `app/Http/Controllers/Api/V1/ApprovalApiController.php`
+  - `app/Http/Resources/Api/V1/AttendanceResource.php`
+- **Tests**: `tests/Feature/AttendanceGeofenceApprovalTest.php`
+
+### Hasil Pengujian & Formatting
+- ✅ `tests/Feature/AttendanceGeofenceApprovalTest.php`: Passed (4 tests, 19 assertions)
+- ✅ `tests/Feature/AttendanceTest.php`: Passed (3 tests, 22 assertions)
+- ✅ `tests/Feature/AttendanceInternFreelancerTest.php`: Passed (10 tests, 21 assertions)
+- ✅ Seluruh Test Suite: Passed (74 tests, 275 assertions)
+- ✅ `vendor/bin/pint --format agent`: Formatted cleanly.
+
+---
+
+## 🔑 FITUR: Akses & Hak Akses Approval Tanpa Batas Bagi Superadmin
+
+**Tanggal**: 2026-07-31
+
+### Deskripsi
+- **Akses Approval Tanpa Batas**: Memastikan pengguna dengan role `Superadmin` memiliki hak akses penuh tanpa batasan (*unlimited override*) untuk menyetujui (`approve`) atau menolak (`reject`) setiap tahap pengajuan di seluruh jenis request (`Cuti`, `Lembur`, `Koreksi Absensi`, `Absensi Luar Geofence`, `Pengunduran Diri`), tanpa terhalang oleh penugasan user spesifik, role approver tertentu, maupun cakupan divisi/perusahaan.
+- **Pembaruan Dashboard Approval (`ApprovalSaya.php` & `approval-saya.blade.php`)**:
+  - Menampilkan antrean persetujuan `Presensi Luar Geofence` dan `Pengunduran Diri` di dashboard persetujuan masuk.
+  - **Refactoring Komponen Asli Filament UI (`x-filament::*`)**: Refactoring antarmuka [`approval-saya.blade.php`](file:///c:/Users/AHTAR/filament-ontime/resources/views/filament/pages/approval-saya.blade.php) menggunakan komponen Blade resmi bawaan Filament:
+    - `<x-filament::section>` untuk kontainer section utama, heading, icon, dan dark mode native.
+    - `<x-filament::badge>` untuk label status dan penghitung antrean (terintegrasi dengan palet warna Filament `warning`, `info`, `primary`, `danger`).
+    - `<x-filament::button>` untuk tombol link Maps, Lampiran file, serta tombol aksi **Tolak** dan **Setujui**.
+  - **Desain Kartu Komparasi Koordinat Karyawan vs Kantor & Kolom Note**:
+    - 📝 **Kolom Catatan / Note**: Ditambahkan kolom `Catatan / Note` di dalam kartu rincian persetujuan untuk menampilkan catatan pengajuan presensi (`$item->notes`).
+    - 📍 **Posisi Karyawan (Saat Absen)**: Kartu bersih yang menampilkan `Latitude` & `Longitude` karyawan dengan tombol langsung ke Google Maps (`https://maps.google.com/?q=lat,lng`).
+    - 🏢 **Posisi Kantor (Seharusnya)**: Kartu bersisian yang menampilkan `Nama Kantor/Cabang`, `Latitude` & `Longitude` lokasi kantor terdekat dengan tombol langsung ke Google Maps (`https://maps.google.com/?q=lat,lng`).
+    - ⚠️ **Indikator Selisih Jarak**: Menampilkan selisih jarak terdeteksi vs radius geofence yang diizinkan perusahaan.
+  - **Pratinjau Foto Thumbnail Kecil**: Foto selfie Check-In/Out tampil dalam bentuk thumbnail `12x12` (`w-12 h-12`) yang bersih.
+- **Registrasi Navigasi Resource**: Membuka pendaftaran navigasi menu `Pengajuan Cuti & Izin`, `Pengajuan Lembur`, dan `Koreksi Absensi` di sidebar bagi Superadmin.
+
+### File Diubah
+- `app/Services/ApprovalFlowService.php`
+- `app/Filament/Pages/ApprovalSaya.php`
+- `resources/views/filament/pages/approval-saya.blade.php`
+- `resources/views/filament/components/attendance-photo-modal.blade.php`
+- `app/Filament/Resources/LeaveRequests/LeaveRequestResource.php`
+- `app/Filament/Resources/OvertimeRequests/OvertimeRequestResource.php`
+- `app/Filament/Resources/AttendanceCorrections/AttendanceCorrectionResource.php`
+
+---
+
+## 🎭 FITUR: Face Recognition & Anti-Spoofing Liveness Detection Presensi
+
+**Tanggal**: 2026-07-31
+
+### Deskripsi
+- **Face Recognition & Real-time Liveness Check**: Integrasi modul verifikasi wajah dan anti-spoofing pada sistem presensi (Web Filament `AbsenHariIni.php` & Mobile REST API `AttendanceApiController.php`).
+- **Foto Master Referensi**: HR / Admin dapat mendaftarkan & mengunggah Foto Master Wajah (`master_face_photo`) pada profil Karyawan (`EmployeeResource`), Magang (`InternResource`), dan Freelance (`FreelanceResource`).
+- **Pengaturan Kebijakan Perusahaan (`CompanyPolicy`)**:
+  - `require_face_recognition`: Toggle opsional mengaktifkan/mematikan kewajiban Face Recognition / AI Detection (seperti halnya fitur GPS dan Foto selfie).
+  - `face_match_threshold`: Pengaturan ambang batas kemiripan wajah (misal 60%).
+  - `face_fail_action`: Pilihan tindakan jika verifikasi wajah tidak cocok (`reject` = Tolak Presensi Langsung, `approval` = Alihkan ke Approval Atasan/Pending).
+- **Client-side Liveness Detection & Camera Overlay (`camera-capture.blade.php`)**:
+  - Secara dinamis menyesuaikan mode kamera: Jika `require_face_recognition` diaktifkan, modul **TensorFlow.js (`@tensorflow/tfjs-core`, `@tensorflow-models/face-landmarks-detection`)** akan dimuat untuk akselerasi biometrik GPU WebGL, verifikasi kedipan mata (*EAR*), dan penguncian tombol foto hingga liveness lolos. Jika dimatikan, antarmuka beralih ke Mode Kamera Foto Standar tanpa mengunci tombol.
+- **Engine Verification (`FaceRecognitionService.php`)**:
+  - Membandingkan foto selfie biometrik yang baru diambil dengan Foto Master Karyawan yang tersimpan di storage (multi-disk support).
+  - Menyimpan skor kemiripan (`face_match_score`), status verifikasi (`is_face_verified`), dan catatan verifikasi (`face_verification_notes`) pada tabel `attendances`.
+
+### Skema & Migration Baru
+- `2026_07_31_110000_add_face_recognition_fields.php`:
+  - `employees`, `interns`, `freelancers`: `master_face_photo`, `master_face_verified_at`.
+  - `company_policies`: `require_face_recognition`, `face_match_threshold`, `face_fail_action`.
+  - `attendances`: `is_face_verified`, `face_match_score`, `face_verification_notes`.
+
+### File Dibuat & Diubah
+- **Migration**: `database/migrations/2026_07_31_110000_add_face_recognition_fields.php`
+- **Models**: `CompanyPolicy.php`, `Attendance.php`, `Employee.php`, `Intern.php`, `Freelancer.php`
+- **Service**: `app/Services/FaceRecognitionService.php`
+- **Filament Resources & Pages**:
+  - `app/Filament/Resources/CompanyResource.php`
+  - `app/Filament/Resources/EmployeeResource.php`
+  - `app/Filament/Resources/InternResource.php`
+  - `app/Filament/Resources/FreelanceResource.php`
+  - `app/Filament/Pages/AbsenHariIni.php`
+  - `resources/views/filament/components/camera-capture.blade.php`
+- **API Controller**: `app/Http/Controllers/Api/V1/AttendanceApiController.php`
+- **Test**: `tests/Feature/FaceRecognitionTest.php`
+
+### Hasil Pengujian & Formatting
+- ✅ `tests/Feature/FaceRecognitionTest.php`: Passed (3 tests, 7 assertions)
+- ✅ `tests/Feature/AttendanceTest.php`: Passed (22 tests, 83 assertions)
+- ✅ `tests/Feature/CompanyPolicyTest.php`: Passed (2 tests, 2 assertions)
+- ✅ `vendor/bin/pint --format agent`: Formatted cleanly without errors.
+
+---
+
+## 📸 FITUR: Dual-Mode Pendaftaran Foto Master Wajah (Kamera & Upload Storage)
+
+**Tanggal**: 2026-07-31
+
+### Deskripsi
+- **Pilihan Dual-Mode**: Pengguna (Karyawan, Magang, Freelance) maupun Admin/HR dapat mendaftarkan/memperbarui Foto Master Wajah (`master_face_photo`) melalui 2 metode pilihan:
+  - 📁 **Mode Upload File**: Memilih foto dari galeri / penyimpanan perangkat.
+  - 📸 **Mode Kamera Langsung**: Ambil foto wajah selfie langsung via web cam / kamera HP.
+- **Mandiri untuk User (`AbsenHariIni.php`)**:
+  - Tombol aksi `Foto Master Wajah` di header halaman Presensi Mandiri.
+  - Banner peringatan dinamis jika perusahaan mewajibkan Face Recognition tetapi user belum mendaftarkan Foto Master Wajah.
+- **Integrasi Admin Forms**: Memperbarui `EmployeeResource`, `InternResource`, dan `FreelanceResource` dengan komponen dual-mode.
+
+### File Dibuat & Diubah
+- **Component**: `resources/views/filament/components/master-face-capture.blade.php`
+- **Pages**: `app/Filament/Pages/AbsenHariIni.php`, `resources/views/filament/pages/absen-hari-ini.blade.php`
+- **Resources**: `app/Filament/Resources/EmployeeResource.php`, `app/Filament/Resources/InternResource.php`, `app/Filament/Resources/FreelanceResource.php`
+
+### Hasil Pengujian & Formatting
+- ✅ Full Test Suite `php artisan test --compact`: **77 passed (282 assertions)**
+- ✅ `vendor/bin/pint --format agent`: Formatted cleanly.
+
+---
+
+## 🗑️ FITUR: Penghapusan Data Absensi di Laporan Absensi & Integrasi Data User
+
+**Tanggal**: 2026-07-31
+
+### Deskripsi
+- **Aksi Hapus Absensi (Single & Bulk Delete)**:
+  - Menambahkan aksi `DeleteAction` dan `DeleteBulkAction` pada [LaporanAbsensi.php](file:///c:/Users/AHTAR/filament-ontime/app/Filament/Pages/LaporanAbsensi.php) dan [AttendanceResource.php](file:///c:/Users/AHTAR/filament-ontime/app/Filament/Resources/Attendances/AttendanceResource.php).
+  - Admin (Superadmin, Approver, BOD) dapat menghapus baris absensi individual maupun secara masal (bulk delete) dengan konfirmasi modal.
+  - Saat absensi dihapus, status absensi user pada tanggal tersebut di-reset sehingga user dapat melakukan absensi ulang (re-check-in).
+- **Integrasi Data User (User Account Integration)**:
+  - Kolom `nama_peserta` diikutsertakan informasi Akun User terhubung (`User Email`) beserta tipe Karyawan / Magang / Freelance.
+  - Fitur pencarian (*searchable*) di Laporan Absensi mendukung pencarian berdasarkan Nama, NIP/NIS, dan Email Akun User.
+
+### File Dibuat & Diubah
+- `app/Filament/Pages/LaporanAbsensi.php`
+- `app/Filament/Resources/Attendances/AttendanceResource.php`
+
+### Hasil Pengujian & Formatting
+- ✅ Full Test Suite `php artisan test --compact`: **77 passed (282 assertions)**
+- ✅ `vendor/bin/pint --format agent`: Formatted cleanly.
+
+---
+
+## ⚡ FASE 10: Optimasi Performa Query, Eliminasi N+1, & Database Indexing
+
+**Tanggal**: 2026-08-03
+
+### Deskripsi
+1. **Pencegahan Lazy Loading di Development (`AppServiceProvider.php`)**:
+   - Menambahkan `Model::preventLazyLoading(! app()->isProduction());` untuk secara otomatis mendeteksi dan mencegah masalah N+1 query selama pengembangan dan pengujian.
+2. **Eliminasi N+1 Query pada Filament Pages & Resources**:
+   - **`LaporanAbsensi.php`**: Menambahkan eager loading `employee.user`, `intern.user`, `freelancer.user` pada query laporan agar akses ke relasi akun user tidak memicu N+1 query per baris tabel.
+   - **`AttendanceResource.php`**: Memperbarui `modifyQueryUsing` untuk melakukan eager loading `employee.user`, `intern.user`, `freelancer.user`.
+   - **`KalenderCuti.php`**: Eager loading `intern.company`, `intern.division`, `freelancer.company`, `freelancer.division` pada query pengajuan cuti.
+   - **`ApprovalFlowService.php`**: Eager loading relasi akun `user` pada seluruh profil pekerja (`employee`, `intern`, `freelancer`) untuk mempercepat rendering dashboard persetujuan (`ApprovalSaya.php`).
+3. **Optimasi Agregasi Query pada Widgets Dashboard**:
+   - **`SuperadminOverviewWidget.php`**: Menggabungkan 3 query count absensi terpisah (`presentCount`, `lateCount`, `leaveCount`) menjadi 1 query agregasi `selectRaw` tunggal.
+   - **`EmployeeStatsWidget.php`**: Menggabungkan kalkulasi status kehadiran (`presentDays`, `lateDays`) menjadi 1 query agregasi `selectRaw` tunggal.
+4. **Database Performance Indexing (Migration)**:
+   - Migration baru: `database/migrations/2026_08_03_000001_add_performance_indexes.php`.
+   - Menambahkan index pada kolom berfrekuensi tinggi:
+     - `attendances`: `date`, `status`, `is_out_of_bounds`, dan composite index (`date`, `status`).
+     - `leave_requests`: `status`, `start_date`, `end_date`, serta composite index (`employee_id`, `status`), (`intern_id`, `status`), (`freelancer_id`, `status`).
+     - `overtime_requests`: `status`, `date`, serta composite index per worker type.
+     - `attendance_corrections`: `status`, `date`, serta composite index per worker type.
+     - `resignations`: `status` dan composite index (`employee_id`, `status`).
+     - `approval_request_steps`: `status` dan composite index lookup (`approvable_type`, `approvable_id`, `step_order`).
+
+### File Dibuat & Diubah
+- **Migration**: `database/migrations/2026_08_03_000001_add_performance_indexes.php`
+- **Provider**: `app/Providers/AppServiceProvider.php`
+- **Pages & Resources**: `app/Filament/Pages/LaporanAbsensi.php`, `app/Filament/Resources/Attendances/AttendanceResource.php`, `app/Filament/Pages/KalenderCuti.php`
+- **Services**: `app/Services/ApprovalFlowService.php`
+- **Widgets**: `app/Filament/Widgets/SuperadminOverviewWidget.php`, `app/Filament/Widgets/EmployeeStatsWidget.php`
+
+### Hasil Pengujian & Formatting
+- ✅ `vendor/bin/pint --format agent`: Passed / Formatted cleanly.
+- ✅ Database Migration: `2026_08_03_000001_add_performance_indexes` executed successfully.
+
+
+
+
+
+
+
 
 

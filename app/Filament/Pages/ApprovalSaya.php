@@ -2,9 +2,11 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\Attendance;
 use App\Models\AttendanceCorrection;
 use App\Models\LeaveRequest;
 use App\Models\OvertimeRequest;
+use App\Models\Resignation;
 use App\Services\ApprovalFlowService;
 use BackedEnum;
 use Filament\Notifications\Notification;
@@ -67,6 +69,30 @@ class ApprovalSaya extends Page
         return $service->getPendingRequestsForUser($user, AttendanceCorrection::class);
     }
 
+    public function getPendingGeofenceAttendancesProperty(): Collection
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return collect();
+        }
+
+        $service = new ApprovalFlowService;
+
+        return $service->getPendingRequestsForUser($user, Attendance::class);
+    }
+
+    public function getPendingResignationsProperty(): Collection
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return collect();
+        }
+
+        $service = new ApprovalFlowService;
+
+        return $service->getPendingRequestsForUser($user, Resignation::class);
+    }
+
     public function approveRequest(string $type, int $id): void
     {
         $user = auth()->user();
@@ -76,6 +102,8 @@ class ApprovalSaya extends Page
             'leave' => LeaveRequest::find($id),
             'overtime' => OvertimeRequest::find($id),
             'correction' => AttendanceCorrection::find($id),
+            'geofence' => Attendance::find($id),
+            'resignation' => Resignation::find($id),
             default => null,
         };
 
@@ -98,6 +126,8 @@ class ApprovalSaya extends Page
             'leave' => LeaveRequest::find($id),
             'overtime' => OvertimeRequest::find($id),
             'correction' => AttendanceCorrection::find($id),
+            'geofence' => Attendance::find($id),
+            'resignation' => Resignation::find($id),
             default => null,
         };
 

@@ -11,6 +11,9 @@ use App\Models\CompanyPolicy;
 use App\Models\Division;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\DeleteBulkAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -142,10 +145,13 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
         $query = Attendance::query()->with([
             'employee.company',
             'employee.division',
+            'employee.user',
             'intern.company',
             'intern.division',
+            'intern.user',
             'freelancer.company',
             'freelancer.division',
+            'freelancer.user',
         ]);
 
         // Scope Enforcement
@@ -260,24 +266,27 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
                     ),
 
                 TextColumn::make('nama_peserta')
-                    ->label('Nama')
-                    ->state(fn (Attendance $record): string => $record->employee?->full_name
-                        ?? $record->intern?->full_name
-                        ?? $record->freelancer?->full_name
-                        ?? '-'
-                    )
-                    ->description(fn (Attendance $record): string => 'NIP/ID: '.(
-                        $record->employee?->nip
-                        ?? $record->intern?->nis
-                        ?? $record->freelancer?->freelancer_number
-                        ?? '-'
-                    )
-                    )
+                    ->label('Nama & User')
+                    ->state(function (Attendance $record): string {
+                        $worker = $record->employee ?? $record->intern ?? $record->freelancer;
+                        $name = $worker?->full_name ?? '-';
+                        $type = $record->employee ? 'Karyawan' : ($record->intern ? 'Magang' : ($record->freelancer ? 'Freelancer' : 'User'));
+
+                        return "{$name} ({$type})";
+                    })
+                    ->description(function (Attendance $record): string {
+                        $worker = $record->employee ?? $record->intern ?? $record->freelancer;
+                        $user = $worker?->user;
+                        $nip = $record->employee?->nip ?? $record->intern?->nis ?? $record->freelancer?->freelancer_number ?? '-';
+                        $email = $user?->email ? " | Account: {$user->email}" : '';
+
+                        return "NIP/ID: {$nip}{$email}";
+                    })
                     ->searchable(query: function ($query, string $search) {
                         $query->where(function ($q) use ($search) {
-                            $q->whereHas('employee', fn ($s) => $s->where('full_name', 'like', "%{$search}%"))
-                                ->orWhereHas('intern', fn ($s) => $s->where('full_name', 'like', "%{$search}%"))
-                                ->orWhereHas('freelancer', fn ($s) => $s->where('full_name', 'like', "%{$search}%"));
+                            $q->whereHas('employee', fn ($s) => $s->where('full_name', 'like', "%{$search}%")->orWhereHas('user', fn ($u) => $u->where('email', 'like', "%{$search}%")))
+                                ->orWhereHas('intern', fn ($s) => $s->where('full_name', 'like', "%{$search}%")->orWhereHas('user', fn ($u) => $u->where('email', 'like', "%{$search}%")))
+                                ->orWhereHas('freelancer', fn ($s) => $s->where('full_name', 'like', "%{$search}%")->orWhereHas('user', fn ($u) => $u->where('email', 'like', "%{$search}%")));
                         });
                     }),
 
@@ -377,6 +386,25 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Tutup')
                     ->visible(fn (Attendance $record): bool => ! empty($record->check_in_photo) || ! empty($record->check_out_photo)),
+
+                DeleteAction::make('delete')
+                    ->label('Hapus')
+                    ->icon('heroicon-o-trash')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('Hapus Data Absensi User')
+                    ->modalDescription('Apakah Anda yakin ingin menghapus data absensi ini? Setelah dihapus, status absensi user pada tanggal ini akan di-reset.')
+                    ->visible(fn (): bool => (bool) auth()->user()?->hasAnyRole(['Superadmin', 'Approver', 'BOD'])),
+            ])
+            ->bulkActions([
+                BulkActionGroup::make([
+                    DeleteBulkAction::make()
+                        ->label('Hapus Absensi Terpilih')
+                        ->requiresConfirmation()
+                        ->modalHeading('Hapus Absensi User Terpilih')
+                        ->modalDescription('Apakah Anda yakin ingin menghapus semua data absensi terpilih?')
+                        ->visible(fn (): bool => (bool) auth()->user()?->hasAnyRole(['Superadmin', 'Approver', 'BOD'])),
+                ]),
             ]);
     }
 

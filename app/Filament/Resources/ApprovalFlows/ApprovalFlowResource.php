@@ -88,6 +88,12 @@ class ApprovalFlowResource extends Resource
                                     ->schema([
                                         static::getStepRepeaterSchema('resignation_steps', 'Pengunduran Diri'),
                                     ]),
+
+                                Tabs\Tab::make('Absensi Luar Geofence')
+                                    ->icon('heroicon-o-map-pin')
+                                    ->schema([
+                                        static::getStepRepeaterSchema('geofence_steps', 'Absensi Luar Geofence'),
+                                    ]),
                             ]),
                     ]),
             ]);
@@ -193,6 +199,11 @@ class ApprovalFlowResource extends Resource
                     ->label('Tahap Pengunduran Diri')
                     ->state(fn (Company $record): string => $record->approvalFlows()->where('request_type', 'resignation')->count().' Tahap')
                     ->color('danger'),
+
+                BadgeColumn::make('geofence_steps')
+                    ->label('Tahap Luar Geofence')
+                    ->state(fn (Company $record): string => $record->approvalFlows()->where('request_type', 'geofence')->count().' Tahap')
+                    ->color('warning'),
             ])
             ->actions([
                 EditAction::make()

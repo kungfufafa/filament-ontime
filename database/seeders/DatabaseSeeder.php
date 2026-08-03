@@ -45,7 +45,7 @@ class DatabaseSeeder extends Seeder
         $this->call(CompanyLocationSeeder::class);
 
         // 5. Setup Approval Flows & Policies for all Companies
-        foreach (Company::all() as $comp) {
+        foreach (Company::with('policy')->get() as $comp) {
             if ($comp->policy) {
                 $comp->policy->update([
                     'late_tolerance_minutes' => 15,

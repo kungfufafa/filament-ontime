@@ -5,6 +5,8 @@ namespace App\Filament\Pages;
 use App\Enums\AttendanceStatus;
 use App\Models\Attendance;
 use App\Models\CompanyPolicy;
+use App\Services\ApprovalFlowService;
+use App\Services\FaceRecognitionService;
 use App\Services\GeofenceService;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -12,6 +14,7 @@ use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\ViewField;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use UnitEnum;
 
@@ -51,6 +54,81 @@ class AbsenHariIni extends Page
         return Attendance::byWorker($user)->today()->first();
     }
 
+    protected function getHeaderActions(): array
+    {
+        $profile = $this->getLinkedProfile();
+
+        if (! empty($profile?->master_face_photo)) {
+            return [];
+        }
+
+        return [
+            $this->updateMasterFaceAction(),
+        ];
+    }
+
+    public function updateMasterFaceAction(): Action
+    {
+        $profile = $this->getLinkedProfile();
+        $hasMasterPhoto = ! empty($profile?->master_face_photo);
+
+        return Action::make('updateMasterFace')
+            ->label($hasMasterPhoto ? 'Ubah Foto Master' : 'Foto Master Wajah')
+            ->icon($hasMasterPhoto ? 'heroicon-o-pencil-square' : 'heroicon-o-user-circle')
+            ->color($hasMasterPhoto ? 'gray' : 'info')
+            ->modalHeading($hasMasterPhoto ? 'Ubah Foto Master Wajah' : 'Pendaftaran Foto Master Wajah')
+            ->modalDescription('Unggah foto dari galeri/penyimpanan atau ambil foto via kamera langsung sebagai referensi biometrik Anda.')
+            ->mountUsing(function ($form) {
+                $profile = $this->getLinkedProfile();
+                $photo = $profile?->master_face_photo;
+                if ($photo) {
+                    $disk = config('filesystems.default');
+                    if (Storage::disk($disk)->exists($photo) || Storage::disk('public')->exists($photo)) {
+                        $form->fill([
+                            'master_face_photo' => $photo,
+                        ]);
+                    } else {
+                        $form->fill([
+                            'master_face_photo' => null,
+                        ]);
+                    }
+                }
+            })
+            ->schema([
+                ViewField::make('master_face_photo')
+                    ->label('Foto Master Wajah')
+                    ->view('filament.components.master-face-capture')
+                    ->required()
+                    ->validationMessages([
+                        'required' => 'Foto Master Wajah wajib diunggah atau diambil via kamera.',
+                    ]),
+            ])
+            ->action(function (array $data): void {
+                $profile = $this->getLinkedProfile();
+
+                if (! $profile) {
+                    Notification::make()
+                        ->title('Profil Tidak Ditemukan')
+                        ->body('Akun Anda belum terhubung dengan data Karyawan / Magang / Freelancer.')
+                        ->danger()
+                        ->send();
+
+                    return;
+                }
+
+                $profile->update([
+                    'master_face_photo' => $data['master_face_photo'],
+                    'master_face_verified_at' => now(),
+                ]);
+
+                Notification::make()
+                    ->title('Foto Master Wajah Berhasil Disimpan!')
+                    ->body('Foto master biometrik Anda telah terdaftar dan diperbarui.')
+                    ->success()
+                    ->send();
+            });
+    }
+
     protected function getLinkedProfile(): mixed
     {
         $user = auth()->user();
@@ -70,6 +148,7 @@ class AbsenHariIni extends Page
         $policy = $this->companyPolicy;
         $requirePhoto = $policy?->require_photo ?? false;
         $requireGps = $policy?->require_gps ?? false;
+        $requireFaceRecognition = $policy?->require_face_recognition ?? false;
 
         return Action::make('checkIn')
             ->label('Check In Sekarang')
@@ -79,7 +158,9 @@ class AbsenHariIni extends Page
             ->schema([
                 ViewField::make('check_in_photo')
                     ->label('Foto Selfie Check In')
-                    ->view('filament.components.camera-capture')
+                    ->view('filament.components.camera-capture', [
+                        'requireFaceRecognition' => $requireFaceRecognition,
+                    ])
                     ->required($requirePhoto)
                     ->visible($requirePhoto)
                     ->validationMessages([
@@ -119,7 +200,36 @@ class AbsenHariIni extends Page
                 $policy = $this->companyPolicy;
                 $company = $profile->company;
 
+                // Face Recognition validation
+                $isFaceVerified = null;
+                $faceMatchScore = null;
+                $faceVerificationNotes = null;
+                $faceFailedAndRequiresApproval = false;
+
+                if ($policy?->require_face_recognition) {
+                    $faceResult = app(FaceRecognitionService::class)->verifyFace(
+                        $data['check_in_photo'] ?? null,
+                        $profile->master_face_photo ?? null,
+                        $policy
+                    );
+
+                    $isFaceVerified = $faceResult['is_matched'];
+                    $faceMatchScore = $faceResult['score'];
+                    $faceVerificationNotes = $faceResult['notes'];
+
+                    if (! $isFaceVerified) {
+                        if ($policy->face_fail_action === 'reject') {
+                            throw ValidationException::withMessages([
+                                'check_in_photo' => 'Verifikasi Wajah Gagal: '.$faceVerificationNotes,
+                            ]);
+                        } else {
+                            $faceFailedAndRequiresApproval = true;
+                        }
+                    }
+                }
+
                 // Multi-location Geofence validation
+                $isOutOfBounds = false;
                 if ($policy?->require_gps && ! empty($data['check_in_lat']) && ! empty($data['check_in_lng']) && $company) {
                     $result = GeofenceService::validateCompanyGeofence(
                         $company,
@@ -128,15 +238,7 @@ class AbsenHariIni extends Page
                     );
 
                     if (! $result['is_valid']) {
-                        Notification::make()
-                            ->title('Lokasi Di Luar Geofence')
-                            ->body($result['message'])
-                            ->danger()
-                            ->send();
-
-                        throw ValidationException::withMessages([
-                            'check_in_photo' => $result['message'],
-                        ]);
+                        $isOutOfBounds = true;
                     }
                 }
 
@@ -147,16 +249,17 @@ class AbsenHariIni extends Page
 
                 $shiftStartThreshold = now()->setTimeFromTimeString($workStartTimeStr)->addMinutes($lateToleranceMinutes);
 
-                $status = AttendanceStatus::OnTime;
+                $requiresApproval = $isOutOfBounds || $faceFailedAndRequiresApproval;
+                $status = $requiresApproval ? AttendanceStatus::PendingApproval : AttendanceStatus::OnTime;
                 $lateMinutes = 0;
 
-                if ($now->greaterThan($shiftStartThreshold)) {
+                if (! $requiresApproval && $now->greaterThan($shiftStartThreshold)) {
                     $status = AttendanceStatus::Late;
                     $lateMinutes = (int) $now->diffInMinutes(now()->setTimeFromTimeString($workStartTimeStr));
                 }
 
                 // Simpan attendance dengan kolom yang sesuai tipe profil
-                Attendance::create([
+                $attendance = Attendance::create([
                     'employee_id' => $employee?->id,
                     'intern_id' => $intern?->id,
                     'freelancer_id' => $freelancer?->id,
@@ -167,13 +270,30 @@ class AbsenHariIni extends Page
                     'check_in_lng' => $data['check_in_lng'] ?? null,
                     'status' => $status,
                     'late_minutes' => $lateMinutes,
+                    'is_out_of_bounds' => $isOutOfBounds,
+                    'is_face_verified' => $isFaceVerified,
+                    'face_match_score' => $faceMatchScore,
+                    'face_verification_notes' => $faceVerificationNotes,
                 ]);
 
-                Notification::make()
-                    ->title('Check In Berhasil!')
-                    ->body("Waktu Check In: {$now->format('H:i:s')} WIB (".($status === AttendanceStatus::Late ? "Terlambat {$lateMinutes} menit" : 'Tepat Waktu').')')
-                    ->success()
-                    ->send();
+                if ($requiresApproval) {
+                    app(ApprovalFlowService::class)->generateSteps($attendance, 'geofence');
+
+                    $reasonNote = $faceFailedAndRequiresApproval ? 'Verifikasi wajah tidak cocok. ' : '';
+                    $reasonNote .= $isOutOfBounds ? 'Lokasi berada di luar geofence.' : '';
+
+                    Notification::make()
+                        ->title('Check In Dikirim (Menunggu Persetujuan)')
+                        ->body($reasonNote.' Presensi berhasil dicatat dan sedang menunggu persetujuan atasan.')
+                        ->warning()
+                        ->send();
+                } else {
+                    Notification::make()
+                        ->title('Check In Berhasil!')
+                        ->body("Waktu Check In: {$now->format('H:i:s')} WIB (".($status === AttendanceStatus::Late ? "Terlambat {$lateMinutes} menit" : 'Tepat Waktu').')')
+                        ->success()
+                        ->send();
+                }
             });
     }
 
@@ -182,6 +302,7 @@ class AbsenHariIni extends Page
         $policy = $this->companyPolicy;
         $requirePhoto = $policy?->require_photo ?? false;
         $requireGps = $policy?->require_gps ?? false;
+        $requireFaceRecognition = $policy?->require_face_recognition ?? false;
 
         return Action::make('checkOut')
             ->label('Check Out Sekarang')
@@ -191,7 +312,9 @@ class AbsenHariIni extends Page
             ->schema([
                 ViewField::make('check_out_photo')
                     ->label('Foto Selfie Check Out')
-                    ->view('filament.components.camera-capture')
+                    ->view('filament.components.camera-capture', [
+                        'requireFaceRecognition' => $requireFaceRecognition,
+                    ])
                     ->required($requirePhoto)
                     ->visible($requirePhoto)
                     ->validationMessages([
@@ -226,6 +349,35 @@ class AbsenHariIni extends Page
                 $profile = $this->getLinkedProfile();
                 $company = $profile?->company;
 
+                // Face Recognition validation
+                $isFaceVerified = null;
+                $faceMatchScore = null;
+                $faceVerificationNotes = null;
+                $faceFailedAndRequiresApproval = false;
+
+                if ($policy?->require_face_recognition) {
+                    $faceResult = app(FaceRecognitionService::class)->verifyFace(
+                        $data['check_out_photo'] ?? null,
+                        $profile->master_face_photo ?? null,
+                        $policy
+                    );
+
+                    $isFaceVerified = $faceResult['is_matched'];
+                    $faceMatchScore = $faceResult['score'];
+                    $faceVerificationNotes = $faceResult['notes'];
+
+                    if (! $isFaceVerified) {
+                        if ($policy->face_fail_action === 'reject') {
+                            throw ValidationException::withMessages([
+                                'check_out_photo' => 'Verifikasi Wajah Gagal: '.$faceVerificationNotes,
+                            ]);
+                        } else {
+                            $faceFailedAndRequiresApproval = true;
+                        }
+                    }
+                }
+
+                $isOutOfBounds = false;
                 if ($policy?->require_gps && ! empty($data['check_out_lat']) && ! empty($data['check_out_lng']) && $company) {
                     $result = GeofenceService::validateCompanyGeofence(
                         $company,
@@ -234,31 +386,46 @@ class AbsenHariIni extends Page
                     );
 
                     if (! $result['is_valid']) {
-                        Notification::make()
-                            ->title('Lokasi Di Luar Geofence')
-                            ->body($result['message'])
-                            ->danger()
-                            ->send();
-
-                        throw ValidationException::withMessages([
-                            'check_out_photo' => $result['message'],
-                        ]);
+                        $isOutOfBounds = true;
                     }
                 }
 
+                $requiresApproval = $isOutOfBounds || $faceFailedAndRequiresApproval;
                 $now = now();
-                $attendance->update([
+                $updateData = [
                     'check_out' => $now,
                     'check_out_photo' => $data['check_out_photo'] ?? null,
                     'check_out_lat' => $data['check_out_lat'] ?? null,
                     'check_out_lng' => $data['check_out_lng'] ?? null,
-                ]);
+                    'is_face_verified' => $isFaceVerified ?? $attendance->is_face_verified,
+                    'face_match_score' => $faceMatchScore ?? $attendance->face_match_score,
+                    'face_verification_notes' => $faceVerificationNotes ?? $attendance->face_verification_notes,
+                ];
 
-                Notification::make()
-                    ->title('Check Out Berhasil!')
-                    ->body("Waktu Check Out: {$now->format('H:i:s')} WIB")
-                    ->success()
-                    ->send();
+                if ($requiresApproval) {
+                    $updateData['is_out_of_bounds'] = $isOutOfBounds || $attendance->is_out_of_bounds;
+                    $updateData['status'] = AttendanceStatus::PendingApproval;
+                }
+
+                $attendance->update($updateData);
+
+                if ($requiresApproval) {
+                    if ($attendance->approvalSteps()->count() === 0) {
+                        app(ApprovalFlowService::class)->generateSteps($attendance, 'geofence');
+                    }
+
+                    Notification::make()
+                        ->title('Check Out Dikirim (Menunggu Persetujuan)')
+                        ->body('Presensi Check Out sedang menunggu persetujuan atasan.')
+                        ->warning()
+                        ->send();
+                } else {
+                    Notification::make()
+                        ->title('Check Out Berhasil!')
+                        ->body("Waktu Check Out: {$now->format('H:i:s')} WIB")
+                        ->success()
+                        ->send();
+                }
             });
     }
 }

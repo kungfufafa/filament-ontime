@@ -26,6 +26,7 @@ class AttendanceResource extends JsonResource
             'check_out_photo' => $this->check_out_photo ? (config('filesystems.default') === 's3' ? Storage::disk('s3')->temporaryUrl($this->check_out_photo, now()->addMinutes(60)) : Storage::disk(config('filesystems.default'))->url($this->check_out_photo)) : null,
             'status' => $this->status,
             'is_corrected' => (bool) $this->is_corrected,
+            'is_out_of_bounds' => (bool) $this->is_out_of_bounds,
             'late_minutes' => $this->late_minutes,
         ];
     }

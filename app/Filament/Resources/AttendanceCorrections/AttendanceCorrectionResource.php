@@ -50,7 +50,7 @@ class AttendanceCorrectionResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return ! (auth()->user()?->hasRole('Superadmin') ?? false);
+        return true;
     }
 
     public static function canCreate(): bool

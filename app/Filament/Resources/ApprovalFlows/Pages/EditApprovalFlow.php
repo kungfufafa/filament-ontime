@@ -43,6 +43,12 @@ class EditApprovalFlow extends EditRecord
             ->get()
             ->toArray();
 
+        $data['geofence_steps'] = ApprovalFlow::where('company_id', $companyId)
+            ->where('request_type', 'geofence')
+            ->orderBy('step_order')
+            ->get()
+            ->toArray();
+
         return $data;
     }
 
@@ -54,19 +60,22 @@ class EditApprovalFlow extends EditRecord
         $overtimeSteps = $data['overtime_steps'] ?? [];
         $correctionSteps = $data['correction_steps'] ?? [];
         $resignationSteps = $data['resignation_steps'] ?? [];
+        $geofenceSteps = $data['geofence_steps'] ?? [];
 
         $this->validateSteps($leaveSteps, 'Cuti / Izin');
         $this->validateSteps($overtimeSteps, 'Lembur');
         $this->validateSteps($correctionSteps, 'Koreksi Absensi');
         $this->validateSteps($resignationSteps, 'Pengunduran Diri');
+        $this->validateSteps($geofenceSteps, 'Absensi Luar Geofence');
 
-        DB::transaction(function () use ($companyId, $leaveSteps, $overtimeSteps, $correctionSteps, $resignationSteps) {
+        DB::transaction(function () use ($companyId, $leaveSteps, $overtimeSteps, $correctionSteps, $resignationSteps, $geofenceSteps) {
             ApprovalFlow::where('company_id', $companyId)->delete();
 
             $this->insertSteps($companyId, 'leave', $leaveSteps);
             $this->insertSteps($companyId, 'overtime', $overtimeSteps);
             $this->insertSteps($companyId, 'correction', $correctionSteps);
             $this->insertSteps($companyId, 'resignation', $resignationSteps);
+            $this->insertSteps($companyId, 'geofence', $geofenceSteps);
         });
 
         return $record;

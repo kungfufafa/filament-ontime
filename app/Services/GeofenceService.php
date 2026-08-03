@@ -101,6 +101,8 @@ class GeofenceService
         $nearestDistance = null;
         $nearestLocationName = null;
         $nearestRadius = $defaultRadius;
+        $nearestLat = null;
+        $nearestLng = null;
 
         foreach ($validLocations as $loc) {
             $distance = static::calculateDistance($loc['lat'], $loc['lng'], $userLat, $userLng);
@@ -112,6 +114,8 @@ class GeofenceService
                     'nearest_location_name' => $loc['name'],
                     'nearest_distance' => $distance,
                     'allowed_radius' => $loc['radius'],
+                    'nearest_lat' => $loc['lat'],
+                    'nearest_lng' => $loc['lng'],
                     'message' => null,
                 ];
             }
@@ -120,6 +124,8 @@ class GeofenceService
                 $nearestDistance = $distance;
                 $nearestLocationName = $loc['name'];
                 $nearestRadius = $loc['radius'];
+                $nearestLat = $loc['lat'];
+                $nearestLng = $loc['lng'];
             }
         }
 
@@ -129,6 +135,8 @@ class GeofenceService
             'nearest_location_name' => $nearestLocationName,
             'nearest_distance' => $nearestDistance,
             'allowed_radius' => $nearestRadius,
+            'nearest_lat' => $nearestLat,
+            'nearest_lng' => $nearestLng,
             'message' => "Posisi Anda ({$nearestDistance} meter) berada di luar radius geofence kantor terdekat '{$nearestLocationName}' ({$nearestRadius} meter).",
         ];
     }

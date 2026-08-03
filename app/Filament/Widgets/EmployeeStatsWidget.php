@@ -30,17 +30,17 @@ class EmployeeStatsWidget extends BaseWidget
         $currentMonth = now()->month;
         $currentYear = now()->year;
 
-        $presentDays = Attendance::where('employee_id', $employee->id)
+        $attendanceStats = Attendance::where('employee_id', $employee->id)
             ->whereMonth('date', $currentMonth)
             ->whereYear('date', $currentYear)
-            ->whereIn('status', ['on_time', 'present'])
-            ->count();
+            ->selectRaw("
+                SUM(CASE WHEN status IN ('on_time', 'present') THEN 1 ELSE 0 END) as present_days,
+                SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) as late_days
+            ")
+            ->first();
 
-        $lateDays = Attendance::where('employee_id', $employee->id)
-            ->whereMonth('date', $currentMonth)
-            ->whereYear('date', $currentYear)
-            ->where('status', 'late')
-            ->count();
+        $presentDays = (int) ($attendanceStats?->present_days ?? 0);
+        $lateDays = (int) ($attendanceStats?->late_days ?? 0);
 
         $maxQuota = $employee->company?->policy?->annual_leave_quota ?? 12;
         $usedLeaveDays = (int) LeaveRequest::where('employee_id', $employee->id)

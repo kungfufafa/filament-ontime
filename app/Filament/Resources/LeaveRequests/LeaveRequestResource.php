@@ -51,7 +51,7 @@ class LeaveRequestResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return ! (auth()->user()?->hasRole('Superadmin') ?? false);
+        return true;
     }
 
     public static function canViewAny(): bool

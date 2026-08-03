@@ -7,6 +7,7 @@ use App\Models\Attendance;
 use App\Models\Company;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
@@ -163,6 +164,11 @@ class AttendanceResource extends Resource
                     ->formatStateUsing(fn (?int $state): string => $state ? "{$state} mnt" : '—')
                     ->sortable(),
 
+                BadgeColumn::make('is_out_of_bounds')
+                    ->label('Geofence')
+                    ->state(fn (Attendance $record): string => $record->is_out_of_bounds ? 'Luar Geofence' : 'Normal')
+                    ->color(fn (Attendance $record): string => $record->is_out_of_bounds ? 'warning' : 'gray'),
+
                 ImageColumn::make('check_in_photo')
                     ->label('Foto Masuk')
                     ->circular()
@@ -231,17 +237,27 @@ class AttendanceResource extends Resource
                     ->label('Sudah Dikoreksi')
                     ->query(fn (Builder $query) => $query->where('is_corrected', true))
                     ->toggle(),
+
+                Filter::make('is_out_of_bounds')
+                    ->label('Luar Geofence')
+                    ->query(fn (Builder $query) => $query->where('is_out_of_bounds', true))
+                    ->toggle(),
             ])
             ->actions([
                 ViewAction::make(),
                 EditAction::make()->label('Override'),
+                DeleteAction::make(),
             ])
             ->bulkActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
             ])
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['employee.company', 'intern.company', 'freelancer.company']));
+            ->modifyQueryUsing(fn (Builder $query) => $query->with([
+                'employee.company', 'employee.user',
+                'intern.company', 'intern.user',
+                'freelancer.company', 'freelancer.user',
+            ]));
     }
 
     public static function getPages(): array

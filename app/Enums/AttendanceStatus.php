@@ -14,6 +14,8 @@ enum AttendanceStatus: string implements HasColor, HasIcon, HasLabel
     case Leave = 'leave';
     case Holiday = 'holiday';
     case Off = 'off';
+    case PendingApproval = 'pending_approval';
+    case Rejected = 'rejected';
 
     public function getLabel(): string
     {
@@ -24,6 +26,8 @@ enum AttendanceStatus: string implements HasColor, HasIcon, HasLabel
             self::Leave => 'Cuti / Izin',
             self::Holiday => 'Hari Libur',
             self::Off => 'Libur',
+            self::PendingApproval => 'Menunggu Persetujuan',
+            self::Rejected => 'Ditolak',
         };
     }
 
@@ -36,6 +40,8 @@ enum AttendanceStatus: string implements HasColor, HasIcon, HasLabel
             self::Leave => 'info',
             self::Holiday => 'gray',
             self::Off => 'gray',
+            self::PendingApproval => 'warning',
+            self::Rejected => 'danger',
         };
     }
 
@@ -48,6 +54,8 @@ enum AttendanceStatus: string implements HasColor, HasIcon, HasLabel
             self::Leave => 'heroicon-o-calendar-days',
             self::Holiday => 'heroicon-o-sun',
             self::Off => 'heroicon-o-moon',
+            self::PendingApproval => 'heroicon-o-clock',
+            self::Rejected => 'heroicon-o-x-circle',
         };
     }
 }

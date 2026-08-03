@@ -112,7 +112,11 @@ class KalenderCuti extends Page implements HasForms
         $month = $this->selectedMonth ?: now()->month;
         $year = $this->selectedYear ?: now()->year;
 
-        $query = LeaveRequest::with(['employee.company', 'employee.division'])
+        $query = LeaveRequest::with([
+            'employee.company', 'employee.division',
+            'intern.company', 'intern.division',
+            'freelancer.company', 'freelancer.division',
+        ])
             ->whereIn('status', ['approved', 'pending'])
             ->whereYear('start_date', $year)
             ->whereMonth('start_date', $month);

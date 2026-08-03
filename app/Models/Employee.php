@@ -24,12 +24,15 @@ class Employee extends Model
         'phone',
         'join_date',
         'status',
+        'master_face_photo',
+        'master_face_verified_at',
     ];
 
     protected function casts(): array
     {
         return [
             'join_date' => 'date',
+            'master_face_verified_at' => 'datetime',
         ];
     }
 

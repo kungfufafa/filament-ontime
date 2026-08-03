@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Enums\AttendanceStatus;
 use App\Models\ApprovalFlow;
 use App\Models\ApprovalRequestStep;
 use App\Models\Approver;
+use App\Models\Attendance;
 use App\Models\User;
 use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Model;
@@ -18,9 +20,17 @@ class ApprovalFlowService
      */
     public function getPendingRequestsForUser(User $user, string $modelClass): Collection
     {
-        return $modelClass::query()
-            ->with(['employee.company', 'employee.division', 'approvalSteps'])
-            ->where('status', 'pending')
+        $query = $modelClass::query();
+
+        $query->with([
+            'employee.company', 'employee.division', 'employee.user',
+            'intern.company', 'intern.division', 'intern.user',
+            'freelancer.company', 'freelancer.division', 'freelancer.user',
+            'approvalSteps',
+        ]);
+
+        return $query
+            ->whereIn('status', ['pending', 'pending_approval'])
             ->get()
             ->filter(fn (Model $item) => $this->isUserAuthorizedToApprove($item, $user));
     }
@@ -60,9 +70,21 @@ class ApprovalFlowService
             ->get();
 
         if ($flows->isEmpty()) {
-            throw ValidationException::withMessages([
-                'approval_flow' => 'Alur approval untuk jenis pengajuan ini belum dikonfigurasi oleh Perusahaan.',
-            ]);
+            if ($requestType === 'geofence') {
+                $flows = collect([
+                    (object) [
+                        'step_order' => 1,
+                        'name' => 'Persetujuan Presensi Luar Geofence',
+                        'approver_type' => 'role',
+                        'approver_role' => 'Approver',
+                        'user_id' => null,
+                    ],
+                ]);
+            } else {
+                throw ValidationException::withMessages([
+                    'approval_flow' => 'Alur approval untuk jenis pengajuan ini belum dikonfigurasi oleh Perusahaan.',
+                ]);
+            }
         }
 
         $generatedSteps = [];
@@ -84,7 +106,7 @@ class ApprovalFlowService
 
         $requestModel->update([
             'current_step' => 1,
-            'status' => 'pending',
+            'status' => $requestModel instanceof Attendance ? AttendanceStatus::PendingApproval : 'pending',
         ]);
 
         // Send In-App Notifications to Authorized Approvers
@@ -111,7 +133,8 @@ class ApprovalFlowService
      */
     public function isUserAuthorizedToApprove(Model $requestModel, User $user): bool
     {
-        if ($requestModel->status !== 'pending') {
+        $statusValue = $requestModel->status instanceof \BackedEnum ? $requestModel->status->value : (string) $requestModel->status;
+        if (! in_array($statusValue, ['pending', 'pending_approval'])) {
             return false;
         }
 
@@ -124,6 +147,11 @@ class ApprovalFlowService
             return false;
         }
 
+        // Superadmin Override: Superadmin has unlimited authority to approve/reject any pending step
+        if ($user->hasRole('Superadmin')) {
+            return true;
+        }
+
         // 1. Direct User Assignment
         if ($step->approver_type === 'user') {
             return (int) $user->id === (int) $step->user_id;
@@ -134,10 +162,6 @@ class ApprovalFlowService
             $requiredRole = $step->approver_role ?? 'Approver';
             if (! $user->hasRole($requiredRole)) {
                 return false;
-            }
-
-            if ($requiredRole === 'Superadmin') {
-                return true;
             }
 
             // Resolve the worker profile to get company/division scope
@@ -210,9 +234,13 @@ class ApprovalFlowService
                     ->sendToDatabase($nextApprover);
             }
         } else {
-            $requestModel->update([
-                'status' => 'approved',
-            ]);
+            if (method_exists($requestModel, 'applyGeofenceApproval')) {
+                $requestModel->applyGeofenceApproval();
+            } else {
+                $requestModel->update([
+                    'status' => 'approved',
+                ]);
+            }
 
             if (method_exists($requestModel, 'applyCorrection')) {
                 $requestModel->applyCorrection();
@@ -253,10 +281,14 @@ class ApprovalFlowService
             ]);
         }
 
-        $requestModel->update([
-            'status' => 'rejected',
-            'rejection_reason' => $reason,
-        ]);
+        if (method_exists($requestModel, 'applyGeofenceRejection')) {
+            $requestModel->applyGeofenceRejection($reason);
+        } else {
+            $requestModel->update([
+                'status' => 'rejected',
+                'rejection_reason' => $reason,
+            ]);
+        }
     }
 
     /**

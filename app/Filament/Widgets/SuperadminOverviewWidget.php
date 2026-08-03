@@ -26,17 +26,18 @@ class SuperadminOverviewWidget extends BaseWidget
     {
         $today = today();
 
-        $presentCount = Attendance::whereDate('date', $today)
-            ->whereIn('status', ['on_time', 'present'])
-            ->count();
+        $attendanceCounts = Attendance::query()
+            ->whereDate('date', $today)
+            ->selectRaw("
+                SUM(CASE WHEN status IN ('on_time', 'present') THEN 1 ELSE 0 END) as present_count,
+                SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) as late_count,
+                SUM(CASE WHEN status = 'leave' THEN 1 ELSE 0 END) as leave_count
+            ")
+            ->first();
 
-        $lateCount = Attendance::whereDate('date', $today)
-            ->where('status', 'late')
-            ->count();
-
-        $leaveCount = Attendance::whereDate('date', $today)
-            ->where('status', 'leave')
-            ->count();
+        $presentCount = (int) ($attendanceCounts?->present_count ?? 0);
+        $lateCount = (int) ($attendanceCounts?->late_count ?? 0);
+        $leaveCount = (int) ($attendanceCounts?->leave_count ?? 0);
 
         $pendingLeaves = LeaveRequest::where('status', 'pending')->count();
         $pendingOvertimes = OvertimeRequest::where('status', 'pending')->count();
