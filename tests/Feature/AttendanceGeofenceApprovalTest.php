@@ -13,8 +13,8 @@ use App\Models\JobLevel;
 use App\Models\JobTitle;
 use App\Models\User;
 use App\Services\ApprovalFlowService;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class AttendanceGeofenceApprovalTest extends TestCase
@@ -24,14 +24,13 @@ class AttendanceGeofenceApprovalTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Role::create(['name' => 'Approver']);
-        Role::create(['name' => 'BOD']);
-        Role::create(['name' => 'Superadmin']);
+        $this->seed(RoleSeeder::class);
     }
 
     private function createEmployee(Company $company): Employee
-    {
+    { q
         $user = User::factory()->create();
+        $user->assignRole('Employee');
         $division = Division::create(['company_id' => $company->id, 'name' => 'IT', 'code' => 'IT', 'is_active' => true]);
         $jobLevel = JobLevel::create(['name' => 'Staff', 'level_number' => 1]);
         $jobTitle = JobTitle::create(['name' => 'Developer']);

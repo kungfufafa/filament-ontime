@@ -11,6 +11,7 @@ use App\Models\Employee;
 use App\Models\JobLevel;
 use App\Models\JobTitle;
 use App\Models\User;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Permission\Models\Role;
@@ -37,10 +38,10 @@ class ApiTest extends TestCase
 
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        Role::firstOrCreate(['name' => 'Superadmin']);
-        Role::firstOrCreate(['name' => 'BOD']);
-        $approverRole = Role::firstOrCreate(['name' => 'Approver']);
-        $employeeRole = Role::firstOrCreate(['name' => 'Employee']);
+        $this->seed(RoleSeeder::class);
+
+        $approverRole = Role::findByName('Approver');
+        $employeeRole = Role::findByName('Employee');
 
         $this->company = Company::create([
             'name' => 'PT Test API',

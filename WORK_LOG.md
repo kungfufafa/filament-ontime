@@ -472,8 +472,42 @@ Menambahkan komponen peta interaktif **OpenStreetMap (Leaflet)** ke form lokasi 
 - **Widgets**: `app/Filament/Widgets/SuperadminOverviewWidget.php`, `app/Filament/Widgets/EmployeeStatsWidget.php`
 
 ### Hasil Pengujian & Formatting
-- ✅ `vendor/bin/pint --format agent`: Passed / Formatted cleanly.
-- ✅ Database Migration: `2026_08_03_000001_add_performance_indexes` executed successfully.
+---
+
+## 🛡️ FASE 11: RESTful API Endpoints Terintegrasi Filament Shield & Spatie Permission
+
+**Tanggal**: 2026-08-03
+
+### Deskripsi
+1. **Otorisasi Middleware Berbasis Filament Shield Permission**:
+   - Seluruh endpoint API V1 kini dilindungi oleh middleware otorisasi permission bawaan Filament Shield (`can:PermissionName`).
+   - `Superadmin` secara otomatis dapat mengakses seluruh endpoint via `Gate::before` callback di `AppServiceProvider.php`.
+2. **Inspeksi Role & Permission API (`ShieldApiController.php`)**:
+   - `GET /api/v1/auth/me`: Mengembalikan daftar `roles` dan seluruh `permissions` milik pengguna (misal: `View:AbsenHariIni`, `ViewAny:LeaveRequest`, dll.).
+   - `GET /api/v1/shield/roles`: Mengembalikan seluruh daftar Role dan mapping permission-nya.
+   - `GET /api/v1/shield/permissions`: Mengembalikan daftar seluruh Shield permission yang terdaftar dalam sistem.
+3. **Endpoint Baru Resource Shield (Pengunduran Diri, Master Data, Kalender Cuti, & Laporan Absensi)**:
+   - **`ResignationApiController.php`**: `GET /api/v1/resignations`, `POST /api/v1/resignations`, `GET /api/v1/resignations/{id}` (dilindungi `can:ViewAny:Resignation`, `can:Create:Resignation`, `can:View:Resignation`).
+   - **`MasterDataApiController.php`**: API Master Data Badan Usaha, Divisi, Level Jabatan, Nama Posisi, Karyawan, Magang, & Freelance (`/api/v1/master/...`).
+   - **`ReportAndCalendarApiController.php`**: Endpoint `GET /api/v1/kalender-cuti` & `GET /api/v1/laporan-absensi`.
+4. **Pengujian Integrasi**:
+   - Menambahkan feature test `tests/Feature/ShieldApiTest.php`.
+
+### File Dibuat & Diubah
+- **Providers & Resources**: `app/Providers/AppServiceProvider.php`, `app/Http/Resources/Api/V1/UserResource.php`, `app/Http/Resources/Api/V1/ResignationResource.php`
+- **API Controllers**:
+  - `app/Http/Controllers/Api/V1/ShieldApiController.php`
+  - `app/Http/Controllers/Api/V1/ResignationApiController.php`
+  - `app/Http/Controllers/Api/V1/MasterDataApiController.php`
+  - `app/Http/Controllers/Api/V1/ReportAndCalendarApiController.php`
+- **Routes**: `routes/api.php`
+- **Tests**: `tests/Feature/ShieldApiTest.php`, `tests/Feature/ApiTest.php`
+
+### Hasil Pengujian & Formatting
+- ✅ `ShieldApiTest`: 6 passed (13 assertions)
+- ✅ Full Test Suite: **80 passed (295 assertions)**
+- ✅ `vendor/bin/pint --dirty --format agent`: Clean formatted.
+
 
 
 
