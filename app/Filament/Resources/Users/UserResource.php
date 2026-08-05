@@ -36,7 +36,16 @@ class UserResource extends Resource
 {
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['employee', 'intern', 'freelancer']);
+        return parent::getEloquentQuery()
+            ->with([
+                'roles',
+                'employee.company',
+                'employee.division',
+                'intern.company',
+                'intern.division',
+                'freelancer.company',
+                'freelancer.division',
+            ]);
     }
 
     /**

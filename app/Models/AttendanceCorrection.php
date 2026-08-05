@@ -56,6 +56,11 @@ class AttendanceCorrection extends Model
         return $this->belongsTo(Attendance::class);
     }
 
+    public function getWorkerProfile(): mixed
+    {
+        return $this->employee ?? $this->intern ?? $this->freelancer;
+    }
+
     public function approvalSteps(): MorphMany
     {
         return $this->morphMany(ApprovalRequestStep::class, 'approvable');

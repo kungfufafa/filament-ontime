@@ -16,14 +16,34 @@ class OvertimeRequestApiController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $employee = $request->user()->employee;
-        if (! $employee) {
-            return response()->json(['message' => 'Employee profile not found.'], 422);
+        $user = $request->user();
+        $employee = $user->employee;
+        $intern = $user->intern;
+        $freelancer = $user->freelancer;
+
+        $profile = $employee ?? $intern ?? $freelancer;
+
+        if (! $profile) {
+            return response()->json([
+                'data' => [],
+                'pagination' => [
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'total' => 0,
+                ],
+            ]);
         }
 
-        $requests = OvertimeRequest::where('employee_id', $employee->id)
-            ->latest()
-            ->paginate(15);
+        $query = OvertimeRequest::query();
+        if ($employee) {
+            $query->where('employee_id', $employee->id);
+        } elseif ($intern) {
+            $query->where('intern_id', $intern->id);
+        } elseif ($freelancer) {
+            $query->where('freelancer_id', $freelancer->id);
+        }
+
+        $requests = $query->latest()->paginate(15);
 
         return response()->json([
             'data' => OvertimeRequestResource::collection($requests),
@@ -94,6 +114,20 @@ class OvertimeRequestApiController extends Controller
 
         return response()->json([
             'message' => 'Pengajuan lembur berhasil diperbarui',
+            'data' => new OvertimeRequestResource($overtimeRequest),
+        ]);
+    }
+
+    public function show(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $overtimeRequest = OvertimeRequest::with(['employee', 'approvalSteps'])->findOrFail($id);
+
+        if (! $user->can('ViewAny:OvertimeRequest') && $overtimeRequest->employee_id !== $user->employee?->id) {
+            return response()->json(['message' => 'Unauthorized access.'], 403);
+        }
+
+        return response()->json([
             'data' => new OvertimeRequestResource($overtimeRequest),
         ]);
     }

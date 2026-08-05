@@ -13,11 +13,23 @@ class ResignationApiController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $employee = $request->user()->employee;
+        $user = $request->user();
+        $employee = $user->employee;
+
+        if (! $employee && ! $user->can('ViewAny:Resignation')) {
+            return response()->json([
+                'data' => [],
+                'pagination' => [
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'total' => 0,
+                ],
+            ]);
+        }
 
         $query = Resignation::with('employee');
 
-        if ($request->user()->hasRole('Employee') && $employee) {
+        if (! $user->can('ViewAny:Resignation') && $employee) {
             $query->where('employee_id', $employee->id);
         }
 

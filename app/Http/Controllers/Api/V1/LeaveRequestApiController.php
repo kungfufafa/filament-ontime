@@ -17,16 +17,57 @@ class LeaveRequestApiController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $employee = $request->user()->employee;
-        if (! $employee) {
-            return response()->json(['message' => 'Employee profile not found.'], 422);
+        $user = $request->user();
+        $employee = $user->employee;
+        $intern = $user->intern;
+        $freelancer = $user->freelancer;
+
+        $profile = $employee ?? $intern ?? $freelancer;
+
+        if (! $profile) {
+            return response()->json([
+                'quota_summary' => [
+                    'annual_leave_quota' => 0,
+                    'used_days' => 0,
+                    'remaining_days' => 0,
+                ],
+                'data' => [],
+                'pagination' => [
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'total' => 0,
+                ],
+            ]);
         }
 
-        $requests = LeaveRequest::where('employee_id', $employee->id)
-            ->latest()
-            ->paginate(15);
+        $policy = $profile->company?->policy;
+        $maxQuota = $policy?->annual_leave_quota ?? 12;
+
+        $query = LeaveRequest::query();
+        if ($employee) {
+            $query->where('employee_id', $employee->id);
+        } elseif ($intern) {
+            $query->where('intern_id', $intern->id);
+        } elseif ($freelancer) {
+            $query->where('freelancer_id', $freelancer->id);
+        }
+
+        $usedQuota = (int) (clone $query)
+            ->where('leave_type', 'annual')
+            ->where('status', 'approved')
+            ->whereYear('start_date', now()->year)
+            ->sum('days_count');
+
+        $remaining = max(0, $maxQuota - $usedQuota);
+
+        $requests = $query->latest()->paginate(15);
 
         return response()->json([
+            'quota_summary' => [
+                'annual_leave_quota' => $maxQuota,
+                'used_days' => $usedQuota,
+                'remaining_days' => $remaining,
+            ],
             'data' => LeaveRequestResource::collection($requests),
             'pagination' => [
                 'current_page' => $requests->currentPage(),
@@ -138,6 +179,20 @@ class LeaveRequestApiController extends Controller
 
         return response()->json([
             'message' => 'Pengajuan cuti berhasil diperbarui',
+            'data' => new LeaveRequestResource($leaveRequest),
+        ]);
+    }
+
+    public function show(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $leaveRequest = LeaveRequest::with(['employee', 'approvalSteps'])->findOrFail($id);
+
+        if (! $user->can('ViewAny:LeaveRequest') && $leaveRequest->employee_id !== $user->employee?->id) {
+            return response()->json(['message' => 'Unauthorized access.'], 403);
+        }
+
+        return response()->json([
             'data' => new LeaveRequestResource($leaveRequest),
         ]);
     }

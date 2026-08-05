@@ -7,6 +7,7 @@ use App\Models\ApprovalFlow;
 use App\Models\ApprovalRequestStep;
 use App\Models\Approver;
 use App\Models\Attendance;
+use App\Models\Company;
 use App\Models\User;
 use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Model;
@@ -54,9 +55,11 @@ class ApprovalFlowService
 
         $workerProfile = method_exists($requestModel, 'getWorkerProfile')
             ? $requestModel->getWorkerProfile()
-            : $requestModel->employee;
+            : ($requestModel->employee ?? $requestModel->intern ?? $requestModel->freelancer);
 
-        $companyId = $workerProfile?->company_id ?? $requestModel->company_id ?? null;
+        $companyId = $workerProfile?->company_id
+            ?? $requestModel->company_id
+            ?? Company::first()?->id;
 
         if (! $companyId) {
             throw ValidationException::withMessages([
@@ -167,7 +170,7 @@ class ApprovalFlowService
             // Resolve the worker profile to get company/division scope
             $workerProfile = method_exists($requestModel, 'getWorkerProfile')
                 ? $requestModel->getWorkerProfile()
-                : $requestModel->employee;
+                : ($requestModel->employee ?? $requestModel->intern ?? $requestModel->freelancer);
 
             if (! $workerProfile) {
                 return false;

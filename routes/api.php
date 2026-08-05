@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\EmployeeWebhookController;
 use App\Http\Controllers\Api\V1\ApprovalApiController;
 use App\Http\Controllers\Api\V1\AttendanceApiController;
 use App\Http\Controllers\Api\V1\AttendanceCorrectionApiController;
@@ -12,7 +13,7 @@ use App\Http\Controllers\Api\V1\ResignationApiController;
 use App\Http\Controllers\Api\V1\ShieldApiController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/webhooks/employees', [\App\Http\Controllers\Api\EmployeeWebhookController::class, 'handle']);
+Route::post('/webhooks/employees', [EmployeeWebhookController::class, 'handle']);
 
 Route::prefix('v1')->group(function () {
 
@@ -27,45 +28,82 @@ Route::prefix('v1')->group(function () {
         Route::get('/shield/roles', [ShieldApiController::class, 'indexRoles'])->middleware('can:ViewAny:Role');
         Route::get('/shield/permissions', [ShieldApiController::class, 'indexPermissions'])->middleware('can:ViewAny:Role');
 
-        // Attendance Presensi (POST)
-        Route::post('/attendance/check-in', [AttendanceApiController::class, 'checkIn'])->middleware('can:View:AbsenHariIni');
-        Route::post('/attendance/check-out', [AttendanceApiController::class, 'checkOut'])->middleware('can:View:AbsenHariIni');
+        // Attendance Presensi
+        Route::post('/attendance/check-in', [AttendanceApiController::class, 'checkIn']);
+        Route::post('/attendance/check-out', [AttendanceApiController::class, 'checkOut']);
+        Route::post('/attendance/master-face', [AttendanceApiController::class, 'registerMasterFace']);
+        Route::get('/attendances', [AttendanceApiController::class, 'index']);
+        Route::get('/attendances/{id}', [AttendanceApiController::class, 'show']);
 
-        // Leave Requests (GET, POST, PUT)
-        Route::get('/leave-requests', [LeaveRequestApiController::class, 'index'])->middleware('can:ViewAny:LeaveRequest');
-        Route::post('/leave-requests', [LeaveRequestApiController::class, 'store'])->middleware('can:Create:LeaveRequest');
-        Route::put('/leave-requests/{id}', [LeaveRequestApiController::class, 'update'])->middleware('can:Update:LeaveRequest');
+        // Leave Requests
+        Route::get('/leave-requests', [LeaveRequestApiController::class, 'index']);
+        Route::post('/leave-requests', [LeaveRequestApiController::class, 'store']);
+        Route::get('/leave-requests/{id}', [LeaveRequestApiController::class, 'show']);
+        Route::put('/leave-requests/{id}', [LeaveRequestApiController::class, 'update']);
 
-        // Overtime Requests (GET, POST, PUT)
-        Route::get('/overtime-requests', [OvertimeRequestApiController::class, 'index'])->middleware('can:ViewAny:OvertimeRequest');
-        Route::post('/overtime-requests', [OvertimeRequestApiController::class, 'store'])->middleware('can:Create:OvertimeRequest');
-        Route::put('/overtime-requests/{id}', [OvertimeRequestApiController::class, 'update'])->middleware('can:Update:OvertimeRequest');
+        // Overtime Requests
+        Route::get('/overtime-requests', [OvertimeRequestApiController::class, 'index']);
+        Route::post('/overtime-requests', [OvertimeRequestApiController::class, 'store']);
+        Route::get('/overtime-requests/{id}', [OvertimeRequestApiController::class, 'show']);
+        Route::put('/overtime-requests/{id}', [OvertimeRequestApiController::class, 'update']);
 
-        // Attendance Corrections (GET, POST, PUT)
-        Route::get('/attendance-corrections', [AttendanceCorrectionApiController::class, 'index'])->middleware('can:ViewAny:AttendanceCorrection');
-        Route::post('/attendance-corrections', [AttendanceCorrectionApiController::class, 'store'])->middleware('can:Create:AttendanceCorrection');
-        Route::put('/attendance-corrections/{id}', [AttendanceCorrectionApiController::class, 'update'])->middleware('can:Update:AttendanceCorrection');
+        // Attendance Corrections
+        Route::get('/attendance-corrections', [AttendanceCorrectionApiController::class, 'index']);
+        Route::post('/attendance-corrections', [AttendanceCorrectionApiController::class, 'store']);
+        Route::get('/attendance-corrections/{id}', [AttendanceCorrectionApiController::class, 'show']);
+        Route::put('/attendance-corrections/{id}', [AttendanceCorrectionApiController::class, 'update']);
 
-        // Resignation Requests (GET, POST)
-        Route::get('/resignations', [ResignationApiController::class, 'index'])->middleware('can:ViewAny:Resignation');
-        Route::post('/resignations', [ResignationApiController::class, 'store'])->middleware('can:Create:Resignation');
-        Route::get('/resignations/{id}', [ResignationApiController::class, 'show'])->middleware('can:View:Resignation');
+        // Resignation Requests
+        Route::get('/resignations', [ResignationApiController::class, 'index']);
+        Route::post('/resignations', [ResignationApiController::class, 'store']);
+        Route::get('/resignations/{id}', [ResignationApiController::class, 'show']);
 
-        // Approval Actions (GET pending, PUT process)
-        Route::get('/approvals/pending', [ApprovalApiController::class, 'pending'])->middleware('can:View:ApprovalSaya');
-        Route::put('/approvals/{type}/{id}/process', [ApprovalApiController::class, 'process'])->middleware('can:View:ApprovalSaya');
+        // Approval Actions
+        Route::get('/approvals/pending', [ApprovalApiController::class, 'pending']);
+        Route::put('/approvals/{type}/{id}/process', [ApprovalApiController::class, 'process']);
 
         // Master Data APIs
         Route::get('/master/companies', [MasterDataApiController::class, 'companies'])->middleware('can:ViewAny:Company');
+        Route::get('/master/companies/{id}', [MasterDataApiController::class, 'showCompany'])->middleware('can:ViewAny:Company');
+
+        Route::get('/master/company-locations', [MasterDataApiController::class, 'companyLocations'])->middleware('can:ViewAny:CompanyLocation');
+        Route::get('/master/company-locations/{id}', [MasterDataApiController::class, 'showCompanyLocation'])->middleware('can:ViewAny:CompanyLocation');
+
+        Route::get('/master/company-policies', [MasterDataApiController::class, 'companyPolicies'])->middleware('can:ViewAny:CompanyPolicy');
+        Route::get('/master/company-policies/{id}', [MasterDataApiController::class, 'showCompanyPolicy'])->middleware('can:ViewAny:CompanyPolicy');
+
         Route::get('/master/divisions', [MasterDataApiController::class, 'divisions'])->middleware('can:ViewAny:Division');
+        Route::get('/master/divisions/{id}', [MasterDataApiController::class, 'showDivision'])->middleware('can:ViewAny:Division');
+
         Route::get('/master/job-titles', [MasterDataApiController::class, 'jobTitles'])->middleware('can:ViewAny:JobTitle');
+        Route::get('/master/job-titles/{id}', [MasterDataApiController::class, 'showJobTitle'])->middleware('can:ViewAny:JobTitle');
+
         Route::get('/master/job-levels', [MasterDataApiController::class, 'jobLevels'])->middleware('can:ViewAny:JobLevel');
+        Route::get('/master/job-levels/{id}', [MasterDataApiController::class, 'showJobLevel'])->middleware('can:ViewAny:JobLevel');
+
         Route::get('/master/employees', [MasterDataApiController::class, 'employees'])->middleware('can:ViewAny:Employee');
+        Route::get('/master/employees/{id}', [MasterDataApiController::class, 'showEmployee'])->middleware('can:ViewAny:Employee');
+
         Route::get('/master/interns', [MasterDataApiController::class, 'interns'])->middleware('can:ViewAny:Intern');
+        Route::get('/master/interns/{id}', [MasterDataApiController::class, 'showIntern'])->middleware('can:ViewAny:Intern');
+
         Route::get('/master/freelancers', [MasterDataApiController::class, 'freelancers'])->middleware('can:ViewAny:Freelancer');
+        Route::get('/master/freelancers/{id}', [MasterDataApiController::class, 'showFreelancer'])->middleware('can:ViewAny:Freelancer');
+
+        Route::get('/master/holidays', [MasterDataApiController::class, 'holidays'])->middleware('can:ViewAny:Holiday');
+        Route::get('/master/holidays/{id}', [MasterDataApiController::class, 'showHoliday'])->middleware('can:ViewAny:Holiday');
+
+        Route::get('/master/approval-flows', [MasterDataApiController::class, 'approvalFlows'])->middleware('can:ViewAny:ApprovalFlow');
+        Route::get('/master/approval-flows/{id}', [MasterDataApiController::class, 'showApprovalFlow'])->middleware('can:ViewAny:ApprovalFlow');
+
+        Route::get('/master/approvers', [MasterDataApiController::class, 'approvers'])->middleware('can:ViewAny:Approver');
+        Route::get('/master/approvers/{id}', [MasterDataApiController::class, 'showApprover'])->middleware('can:ViewAny:Approver');
+
+        Route::get('/master/users', [MasterDataApiController::class, 'users'])->middleware('can:ViewAny:User');
+        Route::get('/master/users/{id}', [MasterDataApiController::class, 'showUser'])->middleware('can:ViewAny:User');
 
         // Reports & Calendar APIs
-        Route::get('/kalender-cuti', [ReportAndCalendarApiController::class, 'kalenderCuti'])->middleware('can:View:KalenderCuti');
-        Route::get('/laporan-absensi', [ReportAndCalendarApiController::class, 'laporanAbsensi'])->middleware('can:View:LaporanAbsensi');
+        Route::get('/kalender-cuti', [ReportAndCalendarApiController::class, 'kalenderCuti']);
+        Route::get('/laporan-absensi', [ReportAndCalendarApiController::class, 'laporanAbsensi']);
     });
 });

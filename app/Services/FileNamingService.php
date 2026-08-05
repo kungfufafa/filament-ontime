@@ -49,6 +49,9 @@ class FileNamingService
     ): string {
         $filename = static::generateFileName($prefix, $identifier, $file);
 
-        return $file->storeAs($directory, $filename, $disk);
+        return $file->storeAs($directory, $filename, [
+            'disk' => $disk,
+            'visibility' => 'public',
+        ]);
     }
 }

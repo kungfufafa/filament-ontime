@@ -14,6 +14,8 @@ use App\Services\FileNamingService;
 use App\Services\GeofenceService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class AttendanceApiController extends Controller
 {
@@ -63,13 +65,17 @@ class AttendanceApiController extends Controller
 
         $photoPath = null;
         if ($request->hasFile('photo')) {
+            $file = $request->file('photo');
+            if (! $file->isValid()) {
+                return response()->json(['message' => 'File foto selfie yang diunggah tidak valid atau gagal disimpan di temporary server.'], 422);
+            }
             $identifier = $profile->employee_code ?? $profile->nik ?? (string) ($profile->id ?? $user->id);
             $photoPath = FileNamingService::storeUploadedFile(
-                $request->file('photo'),
+                $file,
                 'attendance/photos',
                 'ATT_IN',
                 $identifier,
-                config('filesystems.default')
+                's3'
             );
         }
 
@@ -198,13 +204,17 @@ class AttendanceApiController extends Controller
 
         $photoPath = null;
         if ($request->hasFile('photo')) {
+            $file = $request->file('photo');
+            if (! $file->isValid()) {
+                return response()->json(['message' => 'File foto selfie yang diunggah tidak valid atau gagal disimpan di temporary server.'], 422);
+            }
             $identifier = $profile->employee_code ?? $profile->nik ?? (string) ($profile->id ?? $user->id);
             $photoPath = FileNamingService::storeUploadedFile(
-                $request->file('photo'),
+                $file,
                 'attendance/photos',
                 'ATT_OUT',
                 $identifier,
-                config('filesystems.default')
+                's3'
             );
         }
 
@@ -234,5 +244,119 @@ class AttendanceApiController extends Controller
                 : 'Check out berhasil',
             'attendance' => new AttendanceResource($attendance),
         ]);
+    }
+
+    public function index(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $query = Attendance::query();
+
+        if (! $user->can('ViewAny:Attendance')) {
+            $query->byWorker($user);
+        }
+
+        if ($request->has('start_date') && $request->has('end_date')) {
+            $query->whereBetween('date', [$request->input('start_date'), $request->input('end_date')]);
+        } elseif ($request->has('month') && $request->has('year')) {
+            $query->whereMonth('date', $request->input('month'))
+                ->whereYear('date', $request->input('year'));
+        }
+
+        if ($request->has('status')) {
+            $query->where('status', $request->input('status'));
+        }
+
+        $attendances = $query->orderBy('date', 'desc')->paginate(20);
+
+        return response()->json([
+            'data' => AttendanceResource::collection($attendances->items()),
+            'pagination' => [
+                'current_page' => $attendances->currentPage(),
+                'last_page' => $attendances->lastPage(),
+                'per_page' => $attendances->perPage(),
+                'total' => $attendances->total(),
+            ],
+        ]);
+    }
+
+    public function show(int $id, Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $attendance = Attendance::with(['employee', 'intern', 'freelancer', 'approvalSteps'])->findOrFail($id);
+
+        if (! $user->can('ViewAny:Attendance') && ! $this->belongsToWorker($attendance, $user)) {
+            return response()->json(['message' => 'Unauthorized access.'], 403);
+        }
+
+        return response()->json([
+            'data' => new AttendanceResource($attendance),
+        ]);
+    }
+
+    public function registerMasterFace(Request $request): JsonResponse
+    {
+        $request->validate([
+            'photo' => ['required', 'file', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
+        ], [
+            'photo.required' => 'Foto Master Wajah wajib diunggah.',
+            'photo.image' => 'Foto Master Wajah harus berupa berkas gambar.',
+            'photo.mimes' => 'Foto Master Wajah harus berformat jpeg, png, jpg, atau webp.',
+            'photo.max' => 'Foto Master Wajah maksimal berukuran 5MB.',
+        ]);
+
+        $user = $request->user();
+        $profile = $user->employee ?? $user->intern ?? $user->freelancer;
+
+        if (! $profile) {
+            return response()->json(['message' => 'Profil pengguna tidak ditemukan.'], 422);
+        }
+
+        $file = $request->file('photo');
+        if (! $file || ! $file->isValid()) {
+            return response()->json(['message' => 'File foto master wajah tidak valid atau gagal disimpan di temporary server.'], 422);
+        }
+
+        $identifier = $profile->employee_code ?? $profile->nik ?? (string) ($profile->id ?? $user->id);
+
+        $photoPath = FileNamingService::storeUploadedFile(
+            $file,
+            'master-faces',
+            'MASTER_FACE',
+            $identifier,
+            's3'
+        );
+
+        $profile->update([
+            'master_face_photo' => $photoPath,
+            'master_face_verified_at' => now(),
+        ]);
+
+        $disk = config('filesystems.default');
+        $photoUrl = $disk === 's3'
+            ? Storage::disk('s3')->temporaryUrl($photoPath, now()->addDays(7))
+            : Storage::disk($disk)->url($photoPath);
+
+        return response()->json([
+            'message' => 'Foto Master Wajah berhasil diperbarui',
+            'data' => [
+                'master_face_photo' => $photoUrl,
+                'master_face_verified_at' => $profile->master_face_verified_at->toISOString(),
+            ],
+        ]);
+    }
+
+    private function belongsToWorker(Attendance $attendance, $user): bool
+    {
+        if ($user->employee && $attendance->employee_id === $user->employee->id) {
+            return true;
+        }
+        if ($user->intern && $attendance->intern_id === $user->intern->id) {
+            return true;
+        }
+        if ($user->freelancer && $attendance->freelancer_id === $user->freelancer->id) {
+            return true;
+        }
+
+        return false;
     }
 }

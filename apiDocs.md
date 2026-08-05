@@ -22,6 +22,7 @@ Dokumentasi resmi Endpoint API V1 OnTime untuk keperluan integrasi Mobile App / 
 | **POST** | `/auth/logout` | Logout user & hapus token | Bearer Token |
 | **POST** | `/attendance/check-in` | Presensi Masuk (Check-In) + Foto/GPS | Bearer Token |
 | **POST** | `/attendance/check-out` | Presensi Keluar (Check-Out) + Foto/GPS | Bearer Token |
+| **POST** | `/attendance/master-face` | Registrasi / Upload Foto Master Wajah Biometrik | Bearer Token |
 | **POST** | `/leave-requests` | Buat Pengajuan Cuti / Izin Baru | Bearer Token |
 | **PUT** | `/leave-requests/{id}` | Update Pengajuan Cuti (Status Pending) | Bearer Token |
 | **POST** | `/overtime-requests` | Buat Pengajuan Lembur Baru | Bearer Token |
@@ -118,6 +119,23 @@ Melakukan Presensi Keluar harian.
     "id": 10,
     "check_out": "17:02:15",
     "status": "present"
+  }
+}
+```
+
+#### `POST /attendance/master-face`
+Mengunggah/memperbarui foto master biometrik wajah pengguna terhubung (`Employee`, `Intern`, atau `Freelancer`).
+
+- **Request Body (`multipart/form-data`)**:
+  - `photo` *(file image: jpeg, png, jpg, webp, max 5MB, required)*
+
+- **Response Status**: `200 OK`
+```json
+{
+  "message": "Foto Master Wajah berhasil diperbarui",
+  "data": {
+    "master_face_photo": "http://127.0.0.1:8000/storage/master-faces/xyz_master.jpg",
+    "master_face_verified_at": "2026-08-03T14:00:00.000000Z"
   }
 }
 ```

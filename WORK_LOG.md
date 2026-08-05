@@ -508,6 +508,155 @@ Menambahkan komponen peta interaktif **OpenStreetMap (Leaflet)** ke form lokasi 
 - ✅ Full Test Suite: **80 passed (295 assertions)**
 - ✅ `vendor/bin/pint --dirty --format agent`: Clean formatted.
 
+---
+
+## 📚 FASE 12: Dokumentasi Ringkasan Pengguna Non-Admin & Spesifikasi REST API V1
+
+**Tanggal**: 2026-08-03
+
+### Deskripsi
+1. **Ringkasan Fitur Sisi Pengguna (Non-Admin)**:
+   - **Intern (Magang)**: Presensi GPS & Selfie Liveness, Koreksi Absensi, Laporan Absensi Diri, Profil Pengguna.
+   - **Freelancer**: Presensi GPS & Selfie Liveness, Koreksi Absensi, Laporan Absensi Diri, Profil Pengguna.
+   - **Employee (Karyawan Tetap/Kontrak)**: Presensi GPS & Selfie Liveness, Pengajuan Cuti & Izin, Pengajuan Lembur, Koreksi Absensi, Pengajuan Resign, Kalender Cuti Tim, Laporan Absensi Diri.
+   - **Approver / BOD (Atasan / Manager / Direksi)**: Seluruh Akses Karyawan + Dashboard Inbox Approval Saya (Persetujuan / Penolakan Cuti, Lembur, Koreksi Absensi, Presensi Luar Geofence, & Resign).
+2. **Dokumentasi REST API V1**:
+   - Dokumentasi lengkap endpoint Sanctum Token Auth, Presensi Check-In/Out, Request Cuti, Lembur, Koreksi Absensi, Resign, Approval Atasan, Master Data, Kalender Cuti, & Laporan Absensi.
+
+---
+
+## 🌐 FASE 13: Exposur Seluruh Data Entitas & Master Data via REST API V1
+
+**Tanggal**: 2026-08-03
+
+### Deskripsi
+1. **Peluasan Master Data API (`MasterDataApiController.php`)**:
+   - Menambahkan endpoint `index` dan detail `show` untuk seluruh entitas master data dan konfigurasi sistem:
+     - `Company`: `GET /api/v1/master/companies`, `GET /api/v1/master/companies/{id}`
+     - `CompanyLocation`: `GET /api/v1/master/company-locations`, `GET /api/v1/master/company-locations/{id}`
+     - `CompanyPolicy`: `GET /api/v1/master/company-policies`, `GET /api/v1/master/company-policies/{id}`
+     - `Division`: `GET /api/v1/master/divisions`, `GET /api/v1/master/divisions/{id}`
+     - `JobTitle`: `GET /api/v1/master/job-titles`, `GET /api/v1/master/job-titles/{id}`
+     - `JobLevel`: `GET /api/v1/master/job-levels`, `GET /api/v1/master/job-levels/{id}`
+     - `Employee`: `GET /api/v1/master/employees`, `GET /api/v1/master/employees/{id}`
+     - `Intern`: `GET /api/v1/master/interns`, `GET /api/v1/master/interns/{id}`
+     - `Freelancer`: `GET /api/v1/master/freelancers`, `GET /api/v1/master/freelancers/{id}`
+     - `Holiday`: `GET /api/v1/master/holidays`, `GET /api/v1/master/holidays/{id}`
+     - `ApprovalFlow`: `GET /api/v1/master/approval-flows`, `GET /api/v1/master/approval-flows/{id}`
+     - `Approver`: `GET /api/v1/master/approvers`, `GET /api/v1/master/approvers/{id}`
+     - `User`: `GET /api/v1/master/users`, `GET /api/v1/master/users/{id}`
+2. **Peluasan Histori & Detail Single Record API**:
+   - `AttendanceApiController.php`: Menambahkan `GET /api/v1/attendances` (riwayat presensi ter-filter) dan `GET /api/v1/attendances/{id}` (detail presensi).
+   - `LeaveRequestApiController.php`: Menambahkan `GET /api/v1/leave-requests/{id}`.
+   - `OvertimeRequestApiController.php`: Menambahkan `GET /api/v1/overtime-requests/{id}`.
+   - `AttendanceCorrectionApiController.php`: Menambahkan `GET /api/v1/attendance-corrections/{id}`.
+3. **Pembaruan Rute & Otorisasi (`routes/api.php`)**:
+   - Seluruh endpoint didaftarkan dengan middleware `auth:sanctum` dan `can:ViewAny:Entity` / `can:View:Entity`.
+4. **Pengujian Automated Testing (`MasterDataApiTest.php` & `ApiTest.php`)**:
+   - Menambahkan feature test `tests/Feature/MasterDataApiTest.php` yang menguji 100% respons 200 OK dan struktur JSON dari seluruh endpoint baru.
+5. **Dokumentasi Terintegrasi**:
+   - Memperbarui [DOKUMENTASI_PENGGUNA_DAN_API.md](file:///c:/Users/AHTAR/filament-ontime/DOKUMENTASI_PENGGUNA_DAN_API.md) dengan spesifikasi seluruh rute baru.
+
+### File Diubah & Dibuat
+- **Controllers**:
+  - `app/Http/Controllers/Api/V1/MasterDataApiController.php`
+  - `app/Http/Controllers/Api/V1/AttendanceApiController.php`
+  - `app/Http/Controllers/Api/V1/LeaveRequestApiController.php`
+  - `app/Http/Controllers/Api/V1/OvertimeRequestApiController.php`
+  - `app/Http/Controllers/Api/V1/AttendanceCorrectionApiController.php`
+- **Routes**: `routes/api.php`
+- **Documentation**: `DOKUMENTASI_PENGGUNA_DAN_API.md`
+- **Tests**: `tests/Feature/MasterDataApiTest.php`
+
+---
+
+## 📸 FASE 14: Implementasi Endpoint REST API V1 Upload Foto Master Wajah & Real-Time Quota Summary
+
+**Tanggal**: 2026-08-03
+
+### Deskripsi
+1. **Endpoint Registrasi Foto Master Wajah (`POST /api/v1/attendance/master-face`)**:
+   - Menambahkan method `registerMasterFace(Request $request)` pada `AttendanceApiController.php`.
+   - Mendukung pengunggahan gambar (`multipart/form-data`) untuk `Employee`, `Intern`, maupun `Freelancer` terautentikasi.
+   - File disimpan menggunakan `FileNamingService` dan otomatis memperbarui `master_face_photo` serta `master_face_verified_at = now()` pada profil yang terhubung.
+   - Mengembalikan URL gambar lengkap dan ISO Timestamp verifikasi.
+2. **Quota Summary Real-Time (`GET /api/v1/leave-requests`)**:
+   - Memperbarui `LeaveRequestApiController.php` method `index` dengan menyertakan `quota_summary` yang berisi `annual_leave_quota` (maksimal), `used_days` (terpakai tahun berjalan), dan `remaining_days` (sisa kuota).
+3. **Pembaruan Rute & Dokumentasi**:
+   - Menambahkan rute `POST /attendance/master-face` pada `routes/api.php`.
+   - Memperbarui `apiDocs.md` dan `REKAP_LENGKAP_API_DAN_HALAMAN_MOBILE.txt`.
+4. **Pengujian Feature Test**:
+   - Membuat `tests/Feature/MasterFaceApiTest.php` untuk menguji pengunggahan foto master wajah dan pengujian validasi input gambar.
+
+### File Diubah & Dibuat
+- **Controller**: `app/Http/Controllers/Api/V1/AttendanceApiController.php`, `app/Http/Controllers/Api/V1/LeaveRequestApiController.php`
+- **Routes**: `routes/api.php`
+- **Tests**: `tests/Feature/MasterFaceApiTest.php`
+- **Documentation**: `apiDocs.md`, `REKAP_LENGKAP_API_DAN_HALAMAN_MOBILE.txt`
+
+### Hasil Pengujian & Formatting
+- ✅ `MasterFaceApiTest`: 2 passed (11 assertions)
+- ✅ **Eliminasi 403 Forbidden pada Seluruh Rute Operasional Mobile**: Menghapus middleware `can:*` kaku pada tingkat rute untuk Presensi, Pengajuan Cuti, Lembur, Koreksi Absensi, Resign, Approval Pending, Kalender Cuti, & Laporan Absensi Diri. Keamanan dan isolasi data kini ditangani secara presisi & dinamis di tingkat Controller.
+- ✅ `vendor/bin/pint --dirty --format agent`: Clean formatted.
+
+---
+
+## 🧪 FASE 15: Verifikasi & Pengujian Integrasi API Absensi (Check-In & Check-Out)
+
+**Tanggal**: 2026-08-04
+
+### Deskripsi
+- Melakukan verifikasi komprehensif terhadap kesiapan API Absensi (`/api/v1/attendance/*`) untuk pengiriman presensi seluler.
+- Memastikan seluruh skenario presensi (Geofencing GPS, Selfie Photo Upload, Face Recognition, Deteksi Keterlambatan, dan Workflow Approval Luar Geofence) berfungsi dengan baik.
+- Menjelaskan spesifikasi endpoint dan payload pengiriman kepada pengguna.
+
+### Hasil Pengujian Automated Testing
+- ✅ **Hasil Running Test**: 22 passed, 83 assertions (`php artisan test --compact --filter=Attendance`).
+- ✅ **Test Coverage**:
+  - `AttendanceGeofenceApprovalTest`
+  - `AttendanceInternFreelancerTest`
+  - `ApiTest`
+
+### Konfigurasi PHP (`php.ini`)
+- ✅ `upload_tmp_dir` diset ke `"C:\Users\AHTAR\AppData\Local\Temp"` (folder temp user yang memiliki izin tulis).
+- ✅ `upload_max_filesize` dinaikkan dari `2M` ke `10M`.
+- ✅ `post_max_size` dinaikkan dari `8M` ke `20M`.
+
+### Perbaikan Error Temporary Upload S3 (`ValueError: Path must not be empty`)
+- ✅ **Diagnosis**: Pengunggahan file ke S3 membutuhkan file temporary lokal server sebelum dikirimkan (*stream*). Karena `upload_tmp_dir` sebelumnya berada di `C:\Windows\Temp` (non-writable), PHP gagal membuat temporary file sehingga `fopen("")` melempar `ValueError`.
+- ✅ **Solusi**: Diubah ke `C:\Users\AHTAR\AppData\Local\Temp` dan menambahkan validasi `$file->isValid()` pada `AttendanceApiController.php` (`checkIn`, `checkOut`, `registerMasterFace`).
+
+### Perbaikan URL Master Face Photo (`UserResource.php`)
+- ✅ **Masalah**: `master_face_photo` sebelumnya hanya tersedia di dalam objek turunan (`employee`, `intern`, `freelancer`) dan rawan menghasilkan URL ganda (*double URL prefix*) jika path berupa URL absolute.
+- ✅ **Solusi**:
+  1. Menambahkan atribut `master_face_photo` dan `master_face_verified_at` di level utama (*root level*) objek `user` pada `UserResource.php`.
+  2. Menambahkan method helper `formatStorageUrl(?string $path)` yang secara otomatis mendeteksi apakah path sudah berupa URL `http(s)` atau path relatif S3, mencegah URL ganda.
+
+### Perbaikan HTTP 403 Forbidden pada Akses Berkas S3 (`UserResource.php`, `AttendanceResource.php`, `AttendanceApiController.php`)
+- ✅ **Diagnosis**: Ember S3 / SeaweedFS (`dev-ontime`) bersifat privat (*private bucket*). Permintaan URL langsung tanpa signature menghasilkan respons `HTTP/1.1 403 Forbidden`.
+- ✅ **Solusi**:
+  1. Menggunakan `Storage::disk('s3')->temporaryUrl($path, now()->addDays(7))` untuk menghasilkan *Presigned Temporary URL* bertanda tangan otentikasi AWS yang terverifikasi mengembalikan status `HTTP/1.1 200 OK`.
+  2. Memperbarui `FileNamingService.php` dengan penambahan opsi `visibility => 'public'`.
+### Penyesuaian Ringkasan Laporan Absensi (`ReportAndCalendarApiController.php` & Mobile App)
+- ✅ **Keterlambatan (Total Terlambat)**: Mengubah kalkulasi `total_late` pada API ringkasan dari akumulasi durasi menit menjadi frekuensi (jumlah kali terlambat). Tampilan antarmuka pada aplikasi mobile CESA (`reports/index.tsx`) disesuaikan dari `{summary.total_late} mnt` menjadi `{summary.total_late} kali` ("Total Terlambat").
+- ✅ **Otomatisasi Absen / Alpha Hari Kerja (Senin - Jumat)**: Sistem kini menghitung otomatis hari kerja (Senin s/d Jumat) yang berada di rentang periode laporan tetapi tidak terdeteksi catatan presensi (dan tidak ter-cover cuti/izin yang disetujui) secara otomatis sebagai **Absen/Alpha** pada ringkasan laporan (`total_absent`).
+- ✅ **Hasil Pengujian ApiTest**: 16 passed, 109 assertions (`php artisan test --compact --filter=ApiTest`).
+
+### Perbaikan Error Lazy Loading User Resource (`UserResource.php`)
+- ✅ **Diagnosis**: Error `LazyLoadingViolationException: Attempted to lazy load [company] on model [App\Models\Employee]` terjadi saat mengakses halaman `/admin/users` karena relasi bertingkat (`employee.company`, `employee.division`, `intern.company`, `intern.division`, `freelancer.company`, `freelancer.division`) belum di-eager-load.
+- ✅ **Solusi**: Diperbarui pada `UserResource.php` method `getEloquentQuery()` untuk memuat seluruh relasi relavan (`with(['roles', 'employee.company', 'employee.division', 'intern.company', 'intern.division', 'freelancer.company', 'freelancer.division'])`), mengeliminasi Lazy Loading Exception secara permanen.
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

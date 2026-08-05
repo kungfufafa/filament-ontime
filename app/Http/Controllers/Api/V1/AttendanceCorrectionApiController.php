@@ -16,14 +16,34 @@ class AttendanceCorrectionApiController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $employee = $request->user()->employee;
-        if (! $employee) {
-            return response()->json(['message' => 'Employee profile not found.'], 422);
+        $user = $request->user();
+        $employee = $user->employee;
+        $intern = $user->intern;
+        $freelancer = $user->freelancer;
+
+        $profile = $employee ?? $intern ?? $freelancer;
+
+        if (! $profile) {
+            return response()->json([
+                'data' => [],
+                'pagination' => [
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'total' => 0,
+                ],
+            ]);
         }
 
-        $requests = AttendanceCorrection::where('employee_id', $employee->id)
-            ->latest()
-            ->paginate(15);
+        $query = AttendanceCorrection::query();
+        if ($employee) {
+            $query->where('employee_id', $employee->id);
+        } elseif ($intern) {
+            $query->where('intern_id', $intern->id);
+        } elseif ($freelancer) {
+            $query->where('freelancer_id', $freelancer->id);
+        }
+
+        $requests = $query->latest()->paginate(15);
 
         return response()->json([
             'data' => AttendanceCorrectionResource::collection($requests),
@@ -37,25 +57,32 @@ class AttendanceCorrectionApiController extends Controller
 
     public function store(StoreAttendanceCorrectionRequest $request): JsonResponse
     {
-        $employee = $request->user()->employee;
-        if (! $employee) {
-            return response()->json(['message' => 'Employee profile not found.'], 422);
+        $user = $request->user();
+        $employee = $user->employee;
+        $intern = $user->intern;
+        $freelancer = $user->freelancer;
+
+        $profile = $employee ?? $intern ?? $freelancer;
+        if (! $profile) {
+            return response()->json(['message' => 'Profil pengguna tidak ditemukan.'], 422);
         }
 
         $attachmentPath = null;
         if ($request->hasFile('attachment')) {
-            $identifier = $employee->employee_code ?? (string) $employee->id;
+            $identifier = $profile->employee_code ?? $profile->nik ?? (string) $profile->id;
             $attachmentPath = FileNamingService::storeUploadedFile(
                 $request->file('attachment'),
                 'attendance-corrections/attachments',
                 'CORR',
                 $identifier,
-                'public'
+                config('filesystems.default', 'public')
             );
         }
 
         $correction = AttendanceCorrection::create([
-            'employee_id' => $employee->id,
+            'employee_id' => $employee?->id,
+            'intern_id' => $intern?->id,
+            'freelancer_id' => $freelancer?->id,
             'date' => $request->input('date'),
             'corrected_check_in' => $request->input('corrected_check_in'),
             'corrected_check_out' => $request->input('corrected_check_out'),
@@ -75,12 +102,26 @@ class AttendanceCorrectionApiController extends Controller
 
     public function update(UpdateAttendanceCorrectionRequest $request, int $id): JsonResponse
     {
-        $employee = $request->user()->employee;
-        if (! $employee) {
-            return response()->json(['message' => 'Employee profile not found.'], 422);
+        $user = $request->user();
+        $employee = $user->employee;
+        $intern = $user->intern;
+        $freelancer = $user->freelancer;
+
+        $profile = $employee ?? $intern ?? $freelancer;
+        if (! $profile) {
+            return response()->json(['message' => 'Profil pengguna tidak ditemukan.'], 422);
         }
 
-        $correction = AttendanceCorrection::where('employee_id', $employee->id)->find($id);
+        $query = AttendanceCorrection::query();
+        if ($employee) {
+            $query->where('employee_id', $employee->id);
+        } elseif ($intern) {
+            $query->where('intern_id', $intern->id);
+        } elseif ($freelancer) {
+            $query->where('freelancer_id', $freelancer->id);
+        }
+
+        $correction = $query->find($id);
 
         if (! $correction) {
             return response()->json(['message' => 'Pengajuan koreksi absensi tidak ditemukan.'], 404);
@@ -93,13 +134,13 @@ class AttendanceCorrectionApiController extends Controller
         $data = $request->only(['date', 'corrected_check_in', 'corrected_check_out', 'reason']);
 
         if ($request->hasFile('attachment')) {
-            $identifier = $employee->employee_code ?? (string) $employee->id;
+            $identifier = $profile->employee_code ?? $profile->nik ?? (string) $profile->id;
             $data['attachment'] = FileNamingService::storeUploadedFile(
                 $request->file('attachment'),
                 'attendance-corrections/attachments',
                 'CORR',
                 $identifier,
-                'public'
+                config('filesystems.default', 'public')
             );
         }
 
@@ -107,6 +148,20 @@ class AttendanceCorrectionApiController extends Controller
 
         return response()->json([
             'message' => 'Pengajuan koreksi absensi berhasil diperbarui',
+            'data' => new AttendanceCorrectionResource($correction),
+        ]);
+    }
+
+    public function show(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $correction = AttendanceCorrection::with(['employee', 'approvalSteps'])->findOrFail($id);
+
+        if (! $user->can('ViewAny:AttendanceCorrection') && $correction->employee_id !== $user->employee?->id) {
+            return response()->json(['message' => 'Unauthorized access.'], 403);
+        }
+
+        return response()->json([
             'data' => new AttendanceCorrectionResource($correction),
         ]);
     }

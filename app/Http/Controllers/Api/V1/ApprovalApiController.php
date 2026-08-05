@@ -33,12 +33,14 @@ class ApprovalApiController extends Controller
         $overtimes = $this->approvalService->getPendingRequestsForUser($user, OvertimeRequest::class);
         $corrections = $this->approvalService->getPendingRequestsForUser($user, AttendanceCorrection::class);
         $geofences = $this->approvalService->getPendingRequestsForUser($user, Attendance::class);
+        $resignations = $this->approvalService->getPendingRequestsForUser($user, \App\Models\Resignation::class);
 
         return response()->json([
             'leave_requests' => LeaveRequestResource::collection($leaves),
             'overtime_requests' => OvertimeRequestResource::collection($overtimes),
             'attendance_corrections' => AttendanceCorrectionResource::collection($corrections),
             'geofence_attendances' => AttendanceResource::collection($geofences),
+            'resignations' => \App\Http\Resources\Api\V1\ResignationResource::collection($resignations),
         ]);
     }
 

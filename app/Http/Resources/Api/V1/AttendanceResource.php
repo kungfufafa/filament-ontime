@@ -10,6 +10,8 @@ class AttendanceResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $profile = $this->employee ?? $this->intern ?? $this->freelancer;
+
         return [
             'id' => $this->id,
             'employee_id' => $this->employee_id,
@@ -22,12 +24,60 @@ class AttendanceResource extends JsonResource
             'check_in_lng' => $this->check_in_lng,
             'check_out_lat' => $this->check_out_lat,
             'check_out_lng' => $this->check_out_lng,
-            'check_in_photo' => $this->check_in_photo ? (config('filesystems.default') === 's3' ? Storage::disk(config('filesystems.default'))->temporaryUrl($this->check_in_photo, now()->addMinutes(60)) : Storage::disk(config('filesystems.default'))->url($this->check_in_photo)) : null,
-            'check_out_photo' => $this->check_out_photo ? (config('filesystems.default') === 's3' ? Storage::disk(config('filesystems.default'))->temporaryUrl($this->check_out_photo, now()->addMinutes(60)) : Storage::disk(config('filesystems.default'))->url($this->check_out_photo)) : null,
+            'check_in_photo' => $this->formatStorageUrl($this->check_in_photo),
+            'check_out_photo' => $this->formatStorageUrl($this->check_out_photo),
             'status' => $this->status,
             'is_corrected' => (bool) $this->is_corrected,
             'is_out_of_bounds' => (bool) $this->is_out_of_bounds,
             'late_minutes' => $this->late_minutes,
+            'employee' => $this->employee ? $this->formatWorkerProfile($this->employee) : null,
+            'intern' => $this->intern ? $this->formatWorkerProfile($this->intern) : null,
+            'freelancer' => $this->freelancer ? $this->formatWorkerProfile($this->freelancer) : null,
+            'user' => $profile ? [
+                'name' => $profile->full_name ?? 'Pengguna',
+                'department' => $profile->division?->name ?? $profile->department ?? 'Staf',
+            ] : null,
         ];
+    }
+
+    private function formatWorkerProfile($profile): array
+    {
+        return [
+            'id' => $profile->id,
+            'full_name' => $profile->full_name ?? 'Pengguna',
+            'nip' => $profile->nip ?? $profile->employee_code ?? null,
+            'company' => $profile->company ? [
+                'id' => $profile->company->id,
+                'name' => $profile->company->name,
+            ] : null,
+            'division' => $profile->division ? [
+                'id' => $profile->division->id,
+                'name' => $profile->division->name,
+            ] : null,
+            'master_face_photo' => $profile->master_face_photo ?? null,
+        ];
+    }
+
+    private function formatStorageUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        $disk = config('filesystems.default');
+
+        if ($disk === 's3') {
+            try {
+                return Storage::disk('s3')->temporaryUrl($path, now()->addDays(7));
+            } catch (\Throwable $e) {
+                return Storage::disk('s3')->url($path);
+            }
+        }
+
+        return Storage::disk($disk)->url($path);
     }
 }

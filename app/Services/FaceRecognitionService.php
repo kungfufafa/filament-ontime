@@ -43,12 +43,12 @@ class FaceRecognitionService
                     return null;
                 }
 
-                if (Storage::disk($disk)->exists($path)) {
-                    return Storage::disk($disk)->get($path);
-                }
-
                 if (Storage::disk('public')->exists($path)) {
                     return Storage::disk('public')->get($path);
+                }
+
+                if (Storage::disk($disk)->exists($path)) {
+                    return Storage::disk($disk)->get($path);
                 }
 
                 if (Storage::disk('local')->exists($path)) {
