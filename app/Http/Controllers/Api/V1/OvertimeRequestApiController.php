@@ -57,9 +57,14 @@ class OvertimeRequestApiController extends Controller
 
     public function store(StoreOvertimeRequest $request): JsonResponse
     {
-        $employee = $request->user()->employee;
-        if (! $employee) {
-            return response()->json(['message' => 'Employee profile not found.'], 422);
+        $user = $request->user();
+        $employee = $user->employee;
+        $intern = $user->intern;
+        $freelancer = $user->freelancer;
+
+        $profile = $employee ?? $intern ?? $freelancer;
+        if (! $profile) {
+            return response()->json(['message' => 'Profil pengguna tidak ditemukan.'], 422);
         }
 
         $startTime = Carbon::parse($request->input('start_time'));
@@ -67,7 +72,9 @@ class OvertimeRequestApiController extends Controller
         $durationMinutes = (int) $startTime->diffInMinutes($endTime);
 
         $overtimeRequest = OvertimeRequest::create([
-            'employee_id' => $employee->id,
+            'employee_id' => $employee?->id,
+            'intern_id' => $intern?->id,
+            'freelancer_id' => $freelancer?->id,
             'date' => $request->input('date'),
             'start_time' => $request->input('start_time'),
             'end_time' => $request->input('end_time'),
@@ -87,12 +94,26 @@ class OvertimeRequestApiController extends Controller
 
     public function update(UpdateOvertimeRequest $request, int $id): JsonResponse
     {
-        $employee = $request->user()->employee;
-        if (! $employee) {
-            return response()->json(['message' => 'Employee profile not found.'], 422);
+        $user = $request->user();
+        $employee = $user->employee;
+        $intern = $user->intern;
+        $freelancer = $user->freelancer;
+
+        $profile = $employee ?? $intern ?? $freelancer;
+        if (! $profile) {
+            return response()->json(['message' => 'Profil pengguna tidak ditemukan.'], 422);
         }
 
-        $overtimeRequest = OvertimeRequest::where('employee_id', $employee->id)->find($id);
+        $query = OvertimeRequest::query();
+        if ($employee) {
+            $query->where('employee_id', $employee->id);
+        } elseif ($intern) {
+            $query->where('intern_id', $intern->id);
+        } elseif ($freelancer) {
+            $query->where('freelancer_id', $freelancer->id);
+        }
+
+        $overtimeRequest = $query->find($id);
 
         if (! $overtimeRequest) {
             return response()->json(['message' => 'Pengajuan lembur tidak ditemukan.'], 404);
@@ -121,14 +142,53 @@ class OvertimeRequestApiController extends Controller
     public function show(Request $request, int $id): JsonResponse
     {
         $user = $request->user();
-        $overtimeRequest = OvertimeRequest::with(['employee', 'approvalSteps'])->findOrFail($id);
+        $overtimeRequest = OvertimeRequest::with(['employee', 'intern', 'freelancer', 'approvalSteps'])->findOrFail($id);
 
-        if (! $user->can('ViewAny:OvertimeRequest') && $overtimeRequest->employee_id !== $user->employee?->id) {
+        if (! $user->can('ViewAny:OvertimeRequest') && $overtimeRequest->employee_id !== $user->employee?->id && $overtimeRequest->intern_id !== $user->intern?->id && $overtimeRequest->freelancer_id !== $user->freelancer?->id) {
             return response()->json(['message' => 'Unauthorized access.'], 403);
         }
 
         return response()->json([
             'data' => new OvertimeRequestResource($overtimeRequest),
+        ]);
+    }
+
+    public function destroy(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $employee = $user->employee;
+        $intern = $user->intern;
+        $freelancer = $user->freelancer;
+
+        $profile = $employee ?? $intern ?? $freelancer;
+        if (! $profile) {
+            return response()->json(['message' => 'Profil pengguna tidak ditemukan.'], 422);
+        }
+
+        $query = OvertimeRequest::query();
+        if ($employee) {
+            $query->where('employee_id', $employee->id);
+        } elseif ($intern) {
+            $query->where('intern_id', $intern->id);
+        } elseif ($freelancer) {
+            $query->where('freelancer_id', $freelancer->id);
+        }
+
+        $overtimeRequest = $query->find($id);
+
+        if (! $overtimeRequest) {
+            return response()->json(['message' => 'Pengajuan lembur tidak ditemukan.'], 404);
+        }
+
+        if ($overtimeRequest->status !== 'pending') {
+            return response()->json(['message' => 'Pengajuan yang sudah diproses tidak dapat dibatalkan.'], 422);
+        }
+
+        $overtimeRequest->approvalSteps()->delete();
+        $overtimeRequest->delete();
+
+        return response()->json([
+            'message' => 'Pengajuan lembur berhasil dibatalkan.',
         ]);
     }
 }

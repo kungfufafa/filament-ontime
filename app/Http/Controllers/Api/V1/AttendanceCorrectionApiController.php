@@ -155,14 +155,53 @@ class AttendanceCorrectionApiController extends Controller
     public function show(Request $request, int $id): JsonResponse
     {
         $user = $request->user();
-        $correction = AttendanceCorrection::with(['employee', 'approvalSteps'])->findOrFail($id);
+        $correction = AttendanceCorrection::with(['employee', 'intern', 'freelancer', 'approvalSteps'])->findOrFail($id);
 
-        if (! $user->can('ViewAny:AttendanceCorrection') && $correction->employee_id !== $user->employee?->id) {
+        if (! $user->can('ViewAny:AttendanceCorrection') && $correction->employee_id !== $user->employee?->id && $correction->intern_id !== $user->intern?->id && $correction->freelancer_id !== $user->freelancer?->id) {
             return response()->json(['message' => 'Unauthorized access.'], 403);
         }
 
         return response()->json([
             'data' => new AttendanceCorrectionResource($correction),
+        ]);
+    }
+
+    public function destroy(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $employee = $user->employee;
+        $intern = $user->intern;
+        $freelancer = $user->freelancer;
+
+        $profile = $employee ?? $intern ?? $freelancer;
+        if (! $profile) {
+            return response()->json(['message' => 'Profil pengguna tidak ditemukan.'], 422);
+        }
+
+        $query = AttendanceCorrection::query();
+        if ($employee) {
+            $query->where('employee_id', $employee->id);
+        } elseif ($intern) {
+            $query->where('intern_id', $intern->id);
+        } elseif ($freelancer) {
+            $query->where('freelancer_id', $freelancer->id);
+        }
+
+        $correction = $query->find($id);
+
+        if (! $correction) {
+            return response()->json(['message' => 'Pengajuan koreksi absensi tidak ditemukan.'], 404);
+        }
+
+        if ($correction->status !== 'pending') {
+            return response()->json(['message' => 'Pengajuan yang sudah diproses tidak dapat dibatalkan.'], 422);
+        }
+
+        $correction->approvalSteps()->delete();
+        $correction->delete();
+
+        return response()->json([
+            'message' => 'Pengajuan koreksi absensi berhasil dibatalkan.',
         ]);
     }
 }

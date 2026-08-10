@@ -301,7 +301,7 @@ class OvertimeRequestResource extends Resource
                 Action::make('lacakProgres')
                     ->label('Lacak Progres')
                     ->color('info')
-                    ->visible(fn (OvertimeRequest $record): bool => auth()->user()?->canTrackApprovalProgressFor($record->employee) ?? false)
+                    ->visible(fn (OvertimeRequest $record): bool => true)
                     ->modalHeading('Progres Approval Transparan')
                     ->modalDescription('Melacak status persetujuan di setiap tahap secara real-time.')
                     ->modalSubmitAction(false)

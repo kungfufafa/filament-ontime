@@ -102,4 +102,61 @@ class ResignationApiController extends Controller
             'data' => new ResignationResource($resignation),
         ]);
     }
+
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $employee = $request->user()->employee;
+        if (! $employee) {
+            return response()->json(['message' => 'Profil Karyawan tidak ditemukan.'], 422);
+        }
+
+        $resignation = Resignation::where('employee_id', $employee->id)->find($id);
+
+        if (! $resignation) {
+            return response()->json(['message' => 'Pengajuan pengunduran diri tidak ditemukan.'], 404);
+        }
+
+        if ($resignation->status !== 'pending') {
+            return response()->json(['message' => 'Pengajuan yang sudah diproses tidak dapat diubah.'], 422);
+        }
+
+        $validated = $request->validate([
+            'resignation_date' => 'sometimes|date',
+            'last_working_day' => 'sometimes|date|after_or_equal:resignation_date',
+            'reason' => 'sometimes|string',
+            'handover_notes' => 'nullable|string',
+        ]);
+
+        $resignation->update($validated);
+
+        return response()->json([
+            'message' => 'Pengajuan pengunduran diri berhasil diperbarui.',
+            'data' => new ResignationResource($resignation),
+        ]);
+    }
+
+    public function destroy(Request $request, int $id): JsonResponse
+    {
+        $employee = $request->user()->employee;
+        if (! $employee) {
+            return response()->json(['message' => 'Profil Karyawan tidak ditemukan.'], 422);
+        }
+
+        $resignation = Resignation::where('employee_id', $employee->id)->find($id);
+
+        if (! $resignation) {
+            return response()->json(['message' => 'Pengajuan pengunduran diri tidak ditemukan.'], 404);
+        }
+
+        if ($resignation->status !== 'pending') {
+            return response()->json(['message' => 'Pengajuan yang sudah diproses tidak dapat dibatalkan.'], 422);
+        }
+
+        $resignation->approvalSteps()->delete();
+        $resignation->delete();
+
+        return response()->json([
+            'message' => 'Pengajuan pengunduran diri berhasil dibatalkan.',
+        ]);
+    }
 }

@@ -345,6 +345,48 @@ class AttendanceApiController extends Controller
         ]);
     }
 
+    public function today(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $profile = $user->employee ?? $user->intern ?? $user->freelancer;
+
+        if (! $profile) {
+            return response()->json(['message' => 'Profil pengguna tidak ditemukan.'], 422);
+        }
+
+        $attendance = Attendance::byWorker($user)->whereDate('date', today())->first();
+
+        return response()->json([
+            'date' => today()->toDateString(),
+            'has_checked_in' => $attendance?->check_in !== null,
+            'has_checked_out' => $attendance?->check_out !== null,
+            'attendance' => $attendance ? new AttendanceResource($attendance) : null,
+        ]);
+    }
+
+    public function deleteMasterFace(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $profile = $user->employee ?? $user->intern ?? $user->freelancer;
+
+        if (! $profile) {
+            return response()->json(['message' => 'Profil pengguna tidak ditemukan.'], 422);
+        }
+
+        if (! $profile->master_face_photo) {
+            return response()->json(['message' => 'Foto Master Wajah belum pernah didaftarkan.'], 400);
+        }
+
+        $profile->update([
+            'master_face_photo' => null,
+            'master_face_verified_at' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Foto Master Wajah berhasil dihapus.',
+        ]);
+    }
+
     private function belongsToWorker(Attendance $attendance, $user): bool
     {
         if ($user->employee && $attendance->employee_id === $user->employee->id) {

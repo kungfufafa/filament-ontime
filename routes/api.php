@@ -29,9 +29,11 @@ Route::prefix('v1')->group(function () {
         Route::get('/shield/permissions', [ShieldApiController::class, 'indexPermissions'])->middleware('can:ViewAny:Role');
 
         // Attendance Presensi
+        Route::get('/attendance/today', [AttendanceApiController::class, 'today']);
         Route::post('/attendance/check-in', [AttendanceApiController::class, 'checkIn']);
         Route::post('/attendance/check-out', [AttendanceApiController::class, 'checkOut']);
         Route::post('/attendance/master-face', [AttendanceApiController::class, 'registerMasterFace']);
+        Route::delete('/attendance/master-face', [AttendanceApiController::class, 'deleteMasterFace']);
         Route::get('/attendances', [AttendanceApiController::class, 'index']);
         Route::get('/attendances/{id}', [AttendanceApiController::class, 'show']);
 
@@ -40,23 +42,28 @@ Route::prefix('v1')->group(function () {
         Route::post('/leave-requests', [LeaveRequestApiController::class, 'store']);
         Route::get('/leave-requests/{id}', [LeaveRequestApiController::class, 'show']);
         Route::put('/leave-requests/{id}', [LeaveRequestApiController::class, 'update']);
+        Route::delete('/leave-requests/{id}', [LeaveRequestApiController::class, 'destroy']);
 
         // Overtime Requests
         Route::get('/overtime-requests', [OvertimeRequestApiController::class, 'index']);
         Route::post('/overtime-requests', [OvertimeRequestApiController::class, 'store']);
         Route::get('/overtime-requests/{id}', [OvertimeRequestApiController::class, 'show']);
         Route::put('/overtime-requests/{id}', [OvertimeRequestApiController::class, 'update']);
+        Route::delete('/overtime-requests/{id}', [OvertimeRequestApiController::class, 'destroy']);
 
         // Attendance Corrections
         Route::get('/attendance-corrections', [AttendanceCorrectionApiController::class, 'index']);
         Route::post('/attendance-corrections', [AttendanceCorrectionApiController::class, 'store']);
         Route::get('/attendance-corrections/{id}', [AttendanceCorrectionApiController::class, 'show']);
         Route::put('/attendance-corrections/{id}', [AttendanceCorrectionApiController::class, 'update']);
+        Route::delete('/attendance-corrections/{id}', [AttendanceCorrectionApiController::class, 'destroy']);
 
         // Resignation Requests
         Route::get('/resignations', [ResignationApiController::class, 'index']);
         Route::post('/resignations', [ResignationApiController::class, 'store']);
         Route::get('/resignations/{id}', [ResignationApiController::class, 'show']);
+        Route::put('/resignations/{id}', [ResignationApiController::class, 'update']);
+        Route::delete('/resignations/{id}', [ResignationApiController::class, 'destroy']);
 
         // Approval Actions
         Route::get('/approvals/pending', [ApprovalApiController::class, 'pending']);

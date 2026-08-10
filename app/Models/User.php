@@ -93,8 +93,12 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(Approver::class);
     }
 
-    public function canTrackApprovalProgressFor(Employee $employee): bool
+    public function canTrackApprovalProgressFor(?Employee $employee = null): bool
     {
+        if (! $employee) {
+            return false;
+        }
+
         return $this->hasRole('Employee') && $this->employee?->is($employee);
     }
 

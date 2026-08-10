@@ -8,10 +8,12 @@ use App\Http\Resources\Api\V1\AttendanceCorrectionResource;
 use App\Http\Resources\Api\V1\AttendanceResource;
 use App\Http\Resources\Api\V1\LeaveRequestResource;
 use App\Http\Resources\Api\V1\OvertimeRequestResource;
+use App\Http\Resources\Api\V1\ResignationResource;
 use App\Models\Attendance;
 use App\Models\AttendanceCorrection;
 use App\Models\LeaveRequest;
 use App\Models\OvertimeRequest;
+use App\Models\Resignation;
 use App\Services\ApprovalFlowService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -33,14 +35,14 @@ class ApprovalApiController extends Controller
         $overtimes = $this->approvalService->getPendingRequestsForUser($user, OvertimeRequest::class);
         $corrections = $this->approvalService->getPendingRequestsForUser($user, AttendanceCorrection::class);
         $geofences = $this->approvalService->getPendingRequestsForUser($user, Attendance::class);
-        $resignations = $this->approvalService->getPendingRequestsForUser($user, \App\Models\Resignation::class);
+        $resignations = $this->approvalService->getPendingRequestsForUser($user, Resignation::class);
 
         return response()->json([
             'leave_requests' => LeaveRequestResource::collection($leaves),
             'overtime_requests' => OvertimeRequestResource::collection($overtimes),
             'attendance_corrections' => AttendanceCorrectionResource::collection($corrections),
             'geofence_attendances' => AttendanceResource::collection($geofences),
-            'resignations' => \App\Http\Resources\Api\V1\ResignationResource::collection($resignations),
+            'resignations' => ResignationResource::collection($resignations),
         ]);
     }
 
@@ -53,11 +55,12 @@ class ApprovalApiController extends Controller
             'overtime', 'overtime-requests' => OvertimeRequest::class,
             'correction', 'attendance-corrections' => AttendanceCorrection::class,
             'geofence', 'attendance', 'attendances' => Attendance::class,
+            'resignation', 'resignations' => Resignation::class,
             default => null,
         };
 
         if (! $modelClass) {
-            return response()->json(['message' => 'Tipe pengajuan tidak valid. Harus salah satu dari: leave, overtime, correction, geofence.'], 422);
+            return response()->json(['message' => 'Tipe pengajuan tidak valid. Harus salah satu dari: leave, overtime, correction, geofence, resignation.'], 422);
         }
 
         $requestModel = $modelClass::find($id);

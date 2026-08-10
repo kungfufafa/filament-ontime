@@ -8,6 +8,7 @@ use App\Models\Division;
 use App\Models\Employee;
 use App\Models\Intern;
 use App\Models\User;
+use App\Services\WhatsAppNotificationService;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -267,12 +268,17 @@ class InternResource extends Resource
                     ->color('success')
                     ->visible(fn (Intern $record): bool => ! $record->user_id)
                     ->modalHeading(fn (Intern $record) => "Buat Akun User untuk {$record->full_name}")
-                    ->modalDescription('Tinjau kredensial yang akan dibuat untuk akun peserta magang ini.')
+                    ->modalDescription('Tinjau kredensial dan role yang akan dibuat untuk akun peserta magang ini.')
                     ->schema([
                         TextInput::make('email')
                             ->label('Alamat Email Login')
                             ->email()
                             ->default(fn (Intern $record) => $record->email ?: strtolower($record->nis).'@magang.local')
+                            ->required(),
+                        Select::make('role')
+                            ->label('Role Akses')
+                            ->options(fn () => Role::pluck('name', 'name')->toArray())
+                            ->default('Intern')
                             ->required(),
                         TextInput::make('password')
                             ->label('Password Awal')
@@ -281,6 +287,8 @@ class InternResource extends Resource
                     ])
                     ->action(function (Intern $record, array $data) {
                         $email = $data['email'];
+                        $roleName = $data['role'] ?? 'Intern';
+                        $password = $data['password'];
 
                         if (User::where('email', $email)->exists()) {
                             Notification::make()
@@ -295,18 +303,61 @@ class InternResource extends Resource
                         $user = User::create([
                             'name' => $record->full_name,
                             'email' => $email,
-                            'password' => Hash::make($data['password']),
+                            'phone' => $record->phone,
+                            'password' => Hash::make($password),
                         ]);
 
-                        if ($role = Role::firstOrCreate(['name' => 'Intern'])) {
+                        if ($role = Role::firstOrCreate(['name' => $roleName])) {
                             $user->assignRole($role);
                         }
 
                         $record->update(['user_id' => $user->id]);
 
-                        Notification::make()
+                        $waResult = WhatsAppNotificationService::sendAccountCredentials(
+                            $record->full_name,
+                            $record->phone,
+                            $email,
+                            $password,
+                            $roleName
+                        );
+
+                        $waStatusNote = $waResult['api_sent']
+                            ? "\n✅ Notifikasi WhatsApp telah otomatis terkirim via WAG Gateway."
+                            : ($waResult['api_error'] ? "\n⚠️ WAG Gateway: {$waResult['api_error']}" : "\n⚠️ Nomor HP belum diisi.");
+
+                        $notification = Notification::make()
                             ->title('Akun User Berhasil Dibuat!')
-                            ->body("Kredensial Login {$record->full_name}:\nEmail: {$email}\nPassword: {$data['password']}")
+                            ->body("Kredensial Login {$record->full_name} (Role: {$roleName}):\nEmail: {$email}\nNo. HP: ".($record->phone ?? '-')."\nPassword: {$password}\nMetode Login: Email + Password atau WhatsApp OTP{$waStatusNote}")
+                            ->success();
+
+                        if (! $waResult['api_sent'] && ! empty($waResult['wa_url'])) {
+                            $notification->actions([
+                                Action::make('send_wa')
+                                    ->label('Kirim via WA Web/App (Fallback)')
+                                    ->url($waResult['wa_url'], shouldOpenInNewTab: true)
+                                    ->button()
+                                    ->color('warning'),
+                            ]);
+                        }
+
+                        $notification->send();
+                    }),
+                Action::make('deleteUser')
+                    ->label('Hapus Akun')
+                    ->icon('heroicon-o-user-minus')
+                    ->color('danger')
+                    ->visible(fn (Intern $record): bool => (bool) $record->user_id)
+                    ->requiresConfirmation()
+                    ->modalHeading(fn (Intern $record) => "Hapus Akun User {$record->full_name}")
+                    ->modalDescription('Apakah Anda yakin ingin menghapus akun user ini? Pengguna ini tidak akan dapat login lagi ke sistem.')
+                    ->action(function (Intern $record) {
+                        $user = $record->user;
+                        $record->update(['user_id' => null]);
+                        $user?->delete();
+
+                        Notification::make()
+                            ->title('Akun User Berhasil Dihapus!')
+                            ->body("Akun user untuk {$record->full_name} telah dihapus dari sistem.")
                             ->success()
                             ->send();
                     }),

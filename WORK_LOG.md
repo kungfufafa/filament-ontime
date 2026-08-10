@@ -731,22 +731,145 @@ Menambahkan komponen peta interaktif **OpenStreetMap (Leaflet)** ke form lokasi 
 - ✅ Automated Tests: `php artisan test --compact --filter=AttendanceTest` (3 passed, 22 assertions).
 - ✅ Frontend Build: `npm run build` (Passed in 5.54s).
 
+---
 
+## 🛠️ FASE 19: Perbaikan Bug TypeError Null Argument `canTrackApprovalProgressFor`
 
+**Tanggal**: 2026-08-10
 
+### Deskripsi
+- Memperbaiki `TypeError: App\Models\User::canTrackApprovalProgressFor(): Argument #1 ($employee) must be of type App\Models\Employee, null given` yang terjadi saat mengakses tabel Koreksi Absensi (`/admin/koreksi-absensi`) atau Lembur.
+- Error disebabkan oleh parameter `$employee` pada method `canTrackApprovalProgressFor` di `User.php` bertipe non-nullable `Employee $employee`. Ketika baris request dimiliki oleh *Intern* atau *Freelancer* (di mana `$record->employee` bernilai `null`), PHP 8.4 melemparkan fatal `TypeError`.
 
+### Perubahan File
+1. **`app/Models/User.php`**:
+   - Mengubah deklarasi method menjadi `public function canTrackApprovalProgressFor(?Employee $employee = null): bool` dengan penanganan pemeriksaan `if (! $employee) return false;`, mencegah terjadinya `TypeError` jika argumen `null` diberikan.
+2. **`app/Filament/Resources/AttendanceCorrections/AttendanceCorrectionResource.php`**:
+   - Menyesuaikan kondisi `visible` pada tombol aksi `lacakProgres` menjadi `true` (konsisten dengan `LeaveRequestResource.php`), sehingga semua pengguna yang berhak melihat tabel pengajuan (karyawan, magang, freelancer, approver, admin) dapat melacak status persetujuan dengan aman.
+3. **`app/Filament/Resources/OvertimeRequests/OvertimeRequestResource.php`**:
+   - Menyesuaikan kondisi `visible` pada tombol aksi `lacakProgres` menjadi `true`.
 
+### Hasil Pengujian
+- ✅ Formatter: `vendor/bin/pint --dirty --format agent` (Passed cleanly).
+- ✅ Automated Tests: `php artisan test --compact --filter=ShieldAccessTest` (5 passed, 26 assertions).
 
+---
 
+## 🌐 FASE 20: Melengkapi & Memperbarui Seluruh Endpoint RESTful API V1
 
+**Tanggal**: 2026-08-10
 
+### Deskripsi
+- Melengkapi seluruh endpoint RESTful API V1 di sistem Filament OnTime agar mendukung penuh fitur aplikasi mobile, termasuk penambahan endpoint status presensi harian, pembatalan/penghapusan pengajuan mandiri, reset master face photo, serta pemrosesan approval pengunduran diri (resignation).
+- Menambahkan dukungan profil non-standar (Peserta Magang & Freelancer) pada pengajuan Cuti dan Lembur via API.
 
+### Perubahan File
+1. **`app/Http/Controllers/Api/V1/AttendanceApiController.php`**:
+   - Menambahkan method `today(Request $request)` untuk mengembalikan rekap status presensi hari ini (Check-In, Check-Out, Geofence status, Keterlambatan, dan data profil).
+   - Menambahkan method `deleteMasterFace(Request $request)` untuk menghapus berkas foto master wajah jika pengguna ingin melakukan registrasi ulang.
+2. **`app/Http/Controllers/Api/V1/ApprovalApiController.php`**:
+   - Menambahkan tipe `'resignation', 'resignations'` ke dalam `match ($type)` pada method `process()` sehingga persetujuan resign dapat diproses melalui `PUT /v1/approvals/resignation/{id}/process`.
+3. **`app/Http/Controllers/Api/V1/LeaveRequestApiController.php`**:
+   - Menambahkan method `destroy(Request $request, int $id)` untuk membatalkan/menghapus pengajuan cuti yang masih `pending`.
+   - Mengisi relasi profil `intern_id` & `freelancer_id` jika user yang membuat pengajuan bukan bertipe `employee`.
+4. **`app/Http/Controllers/Api/V1/OvertimeRequestApiController.php`**:
+   - Menambahkan method `destroy(Request $request, int $id)` untuk membatalkan/menghapus pengajuan lembur `pending`.
+   - Mengisi relasi profil `intern_id` & `freelancer_id` jika user yang membuat pengajuan bukan bertipe `employee`.
+5. **`app/Http/Controllers/Api/V1/AttendanceCorrectionApiController.php`**:
+   - Menambahkan method `destroy(Request $request, int $id)` untuk membatalkan/menghapus pengajuan koreksi absensi `pending`.
+6. **`app/Http/Controllers/Api/V1/ResignationApiController.php`**:
+   - Menambahkan method `update(Request $request, int $id)` untuk mengedit draf pengajuan pengunduran diri berstatus `pending`.
+   - Menambahkan method `destroy(Request $request, int $id)` untuk membatalkan/menghapus pengajuan pengunduran diri `pending`.
+7. **`routes/api.php`**:
+   - Mendaftarkan rute baru:
+     - `GET /v1/attendance/today`
+     - `DELETE /v1/attendance/master-face`
+     - `DELETE /v1/leave-requests/{id}`
+     - `DELETE /v1/overtime-requests/{id}`
+     - `DELETE /v1/attendance-corrections/{id}`
+     - `PUT /v1/resignations/{id}`
+     - `DELETE /v1/resignations/{id}`
+8. **`tests/Feature/ApiEndpointsExtensionTest.php`** [BARU]:
+   - Automated Feature Test yang menguji seluruh 7 endpoint baru/perbaikan (Today summary, delete master face, cancel leave request, cancel overtime request, cancel correction, update/delete resignation, process resignation approval).
 
+### Hasil Pengujian
+- ✅ Formatter: `vendor/bin/pint --dirty --format agent` (Passed cleanly).
+- ✅ Automated Tests: `php artisan test --compact --filter=Api` (19 passed, 57 assertions).
 
+---
 
+## 📱 FASE 21: Pembaruan Tombol Buat Akun User, Pemilihan Role & Notifikasi WhatsApp
 
+**Tanggal**: 2026-08-10
 
+### Deskripsi
+- Memperbarui tombol **"Buat Akun"** pada Manajemen Karyawan (`EmployeeResource`), Peserta Magang (`InternResource`), dan Freelancer (`FreelanceResource`).
+- **Revisi Email Login**: Menggunakan alamat email yang sudah terdaftar pada data Karyawan/Magang/Freelance (`$record->email`), dengan fallback ke email berbasis NIP/NIS jika belum terisi.
+- **Pemilihan Role Akses**: Menambahkan dropdown `Select` untuk memilih Role Akses Spatie (`Employee`, `Approver`, `BOD`, `Superadmin`, dll.) saat membuat akun.
+- **Asosiasi Nomor HP**: Menyimpan nomor telepon (`$record->phone`) pada objek `User` sehingga pengguna dapat login menggunakan **Email** maupun **Nomor HP** (didukung oleh `User::findByPhone()`).
+- **Pengiriman WhatsApp Sinkronus (`mode = sync`)**: Memastikan pengiriman request HTTP POST pada `WhatsAppNotificationService` dieksekusi secara sinkronus (blocking request langsung dengan timeout 15 detik dan payload `'mode' => 'sync'`) saat Admin mengonfirmasi modal form **Buat Akun**, tanpa melalui background queue/job.
 
+### Perubahan File
+1. **`bootstrap/providers.php`**:
+   - Menghapus import & deklarasi redundan `SocialiteServiceProvider::class` untuk menyerahkan autodiscovery penuh ke Composer & Laravel Provider Repository.
+2. **`app/Services/WhatsAppNotificationService.php`** [BARU]:
+   - Class service untuk normalisasi nomor telepon (format `628...`), pengiriman kredensial sinkronus (`'mode' => 'sync'`) via WAG Gateway API (`WAG_URL` & `WAG_API_KEY`) sesuai spesifikasi payload WAGHub.
+3. **`app/Filament/Resources/EmployeeResource.php`**:
+   - Memperbarui `createUser` action & menambahkan `deleteUser` action, serta menyajikan status detail WAG API & tombol fallback pengiriman manual jika API gateway sedang offline.
+4. **`app/Filament/Resources/InternResource.php`**:
+   - Memperbarui `createUser` action & `deleteUser` action dengan WAG API status & fallback.
+5. **`app/Filament/Resources/FreelanceResource.php`**:
+   - Memperbarui `createUser` action & `deleteUser` action dengan WAG API status & fallback.
+6. **`tests/Feature/CreateUserActionTest.php`** [BARU]:
+   - Automated Feature Test untuk menguji pembuatan & penghapusan akun, penugasan role, penyimpanan nomor HP, dan trigger notifikasi WAG API.
 
+### Hasil Pengujian
+- ✅ Composer & Auto-discovery: `composer install --no-interaction` & `php artisan package:discover` (33 packages discovered cleanly).
+- ✅ Formatter: `vendor/bin/pint --dirty --format agent` (Passed cleanly).
+- ✅ Automated Tests: `php artisan test --compact --filter=CreateUserActionTest` (2 passed, 20 assertions).
 
+---
+
+## 📱 FASE 22: Notifikasi Pembuatan Akun via WhatsApp (Email/Password & WhatsApp OTP Login)
+
+**Tanggal**: 2026-08-10
+
+### Deskripsi
+- Memperbarui template notifikasi WhatsApp pada `WhatsAppNotificationService` yang dikirim saat Admin membuat akun dari modul Karyawan (`EmployeeResource`), Magang (`InternResource`), dan Freelance (`FreelanceResource`).
+- **Penjelasan Dua Metode Login**: Notifikasi WhatsApp kini secara eksplisit menginformasikan bahwa pengguna yang baru dibuat dapat login melalui 2 pilihan metode:
+  1. **Login Email & Password**: Menggunakan email terdaftar dan password awal yang ditentukan.
+  2. **Login via WhatsApp OTP**: Panduan langkah demi langkah untuk memilih menu 'Login via WhatsApp' pada halaman login, memasukkan nomor HP terdaftar, dan melakukan verifikasi kode OTP yang dikirimkan via WhatsApp.
+- **Pembaruan Toast Notification**: Memperbarui deskripsi notifikasi pada panel Filament Admin untuk menegaskan opsi login ganda (Email + Password atau WhatsApp OTP).
+
+### Perubahan File
+1. **`app/Services/WhatsAppNotificationService.php`**:
+   - Memperbarui format string `$message` pada method `sendAccountCredentials()` untuk mencantumkan petunjuk login Email/Password serta petunjuk login via WhatsApp OTP secara jelas dan terstruktur.
+2. **`app/Filament/Resources/EmployeeResource.php`**:
+   - Memperbarui pesan toast Notification body pada aksi `createUser`.
+3. **`app/Filament/Resources/InternResource.php`**:
+   - Memperbarui pesan toast Notification body pada aksi `createUser`.
+4. **`app/Filament/Resources/FreelanceResource.php`**:
+   - Memperbarui pesan toast Notification body pada aksi `createUser`.
+5. **`tests/Feature/CreateUserActionTest.php`**:
+   - Memperbarui assertion `Http::assertSent()` untuk memverifikasi bahwa isi pesan yang dikirimkan ke WhatsApp Gateway mengandung instruksi login via WhatsApp OTP dan Email/Password.
+6. **`tests/Feature/InternResourceTest.php`**:
+   - Memperbarui parameter `callTableAction('createUser', ...)` untuk menyediakan payload form (`email`, `role`, `password`).
+
+### Hasil Pengujian
+- ✅ Formatter: `vendor/bin/pint --dirty --format agent` (Passed cleanly).
+- ✅ Full Automated Test Suite: `php artisan test --compact` (47 passed, 168 assertions).
+
+---
+
+## 📱 Pemisahan & Penyesuaian Jalur WAG Gateway (OTP vs Notification)
+
+- **Nomor Tujuan**: `62895636786435`
+- **WAG URL**: `https://waghub.mekayastudio.com/api/v1/messages`
+- **Refaktorisasi Service (`WhatsAppNotificationService.php`)**:
+  - `sendMessage($phone, $message, $purpose, $expiresInMinutes)`: Method utama yang menangani pengiriman request HTTP ke WAG Gateway.
+  - `sendAccountCredentials($name, $phone, $email, $password, $role)`: Khusus notifikasi pembuatan akun, menggunakan `purpose = 'notification'`.
+  - `sendOtpCode($phone, $otpCode, $expiresInMinutes = 5)`: Khusus kode verifikasi OTP WhatsApp login, menggunakan `purpose = 'otp'` & menambahkan timestamp `expires_at`.
+- **Hasil Pengujian Terpisah**:
+  - ✅ **Notification Test (`purpose: notification`)**: `api_sent = true`, `status = HTTP 201 (provider_accepted)`.
+  - ✅ **OTP Test (`purpose: otp`)**: `api_sent = true`, `status = HTTP 201 (provider_accepted)`.
 

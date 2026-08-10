@@ -79,9 +79,14 @@ class LeaveRequestApiController extends Controller
 
     public function store(StoreLeaveRequest $request): JsonResponse
     {
-        $employee = $request->user()->employee;
-        if (! $employee) {
-            return response()->json(['message' => 'Employee profile not found.'], 422);
+        $user = $request->user();
+        $employee = $user->employee;
+        $intern = $user->intern;
+        $freelancer = $user->freelancer;
+
+        $profile = $employee ?? $intern ?? $freelancer;
+        if (! $profile) {
+            return response()->json(['message' => 'Profil pengguna tidak ditemukan.'], 422);
         }
 
         $startDate = Carbon::parse($request->input('start_date'));
@@ -89,15 +94,22 @@ class LeaveRequestApiController extends Controller
         $daysCount = $startDate->diffInDays($endDate) + 1;
 
         if ($request->input('leave_type') === 'annual') {
-            $policy = $employee->company?->policy;
+            $policy = $profile->company?->policy;
             $maxQuota = $policy?->annual_leave_quota ?? 12;
 
-            $usedQuota = (int) LeaveRequest::where('employee_id', $employee->id)
-                ->where('leave_type', 'annual')
+            $usedQuery = LeaveRequest::where('leave_type', 'annual')
                 ->where('status', 'approved')
-                ->whereYear('start_date', now()->year)
-                ->sum('days_count');
+                ->whereYear('start_date', now()->year);
 
+            if ($employee) {
+                $usedQuery->where('employee_id', $employee->id);
+            } elseif ($intern) {
+                $usedQuery->where('intern_id', $intern->id);
+            } elseif ($freelancer) {
+                $usedQuery->where('freelancer_id', $freelancer->id);
+            }
+
+            $usedQuota = (int) $usedQuery->sum('days_count');
             $remaining = $maxQuota - $usedQuota;
 
             if ($daysCount > $remaining) {
@@ -109,7 +121,7 @@ class LeaveRequestApiController extends Controller
 
         $attachmentPath = null;
         if ($request->hasFile('attachment')) {
-            $identifier = $employee->employee_code ?? (string) $employee->id;
+            $identifier = $profile->employee_code ?? $profile->nik ?? (string) $profile->id;
             $attachmentPath = FileNamingService::storeUploadedFile(
                 $request->file('attachment'),
                 'leave-requests/attachments',
@@ -120,7 +132,9 @@ class LeaveRequestApiController extends Controller
         }
 
         $leaveRequest = LeaveRequest::create([
-            'employee_id' => $employee->id,
+            'employee_id' => $employee?->id,
+            'intern_id' => $intern?->id,
+            'freelancer_id' => $freelancer?->id,
             'leave_type' => $request->input('leave_type'),
             'start_date' => $request->input('start_date'),
             'end_date' => $request->input('end_date'),
@@ -141,12 +155,26 @@ class LeaveRequestApiController extends Controller
 
     public function update(UpdateLeaveRequest $request, int $id): JsonResponse
     {
-        $employee = $request->user()->employee;
-        if (! $employee) {
-            return response()->json(['message' => 'Employee profile not found.'], 422);
+        $user = $request->user();
+        $employee = $user->employee;
+        $intern = $user->intern;
+        $freelancer = $user->freelancer;
+
+        $profile = $employee ?? $intern ?? $freelancer;
+        if (! $profile) {
+            return response()->json(['message' => 'Profil pengguna tidak ditemukan.'], 422);
         }
 
-        $leaveRequest = LeaveRequest::where('employee_id', $employee->id)->find($id);
+        $query = LeaveRequest::query();
+        if ($employee) {
+            $query->where('employee_id', $employee->id);
+        } elseif ($intern) {
+            $query->where('intern_id', $intern->id);
+        } elseif ($freelancer) {
+            $query->where('freelancer_id', $freelancer->id);
+        }
+
+        $leaveRequest = $query->find($id);
 
         if (! $leaveRequest) {
             return response()->json(['message' => 'Pengajuan cuti tidak ditemukan.'], 404);
@@ -159,7 +187,7 @@ class LeaveRequestApiController extends Controller
         $data = $request->only(['leave_type', 'start_date', 'end_date', 'reason']);
 
         if ($request->hasFile('attachment')) {
-            $identifier = $employee->employee_code ?? (string) $employee->id;
+            $identifier = $profile->employee_code ?? $profile->nik ?? (string) $profile->id;
             $data['attachment'] = FileNamingService::storeUploadedFile(
                 $request->file('attachment'),
                 'leave-requests/attachments',
@@ -186,14 +214,53 @@ class LeaveRequestApiController extends Controller
     public function show(Request $request, int $id): JsonResponse
     {
         $user = $request->user();
-        $leaveRequest = LeaveRequest::with(['employee', 'approvalSteps'])->findOrFail($id);
+        $leaveRequest = LeaveRequest::with(['employee', 'intern', 'freelancer', 'approvalSteps'])->findOrFail($id);
 
-        if (! $user->can('ViewAny:LeaveRequest') && $leaveRequest->employee_id !== $user->employee?->id) {
+        if (! $user->can('ViewAny:LeaveRequest') && $leaveRequest->employee_id !== $user->employee?->id && $leaveRequest->intern_id !== $user->intern?->id && $leaveRequest->freelancer_id !== $user->freelancer?->id) {
             return response()->json(['message' => 'Unauthorized access.'], 403);
         }
 
         return response()->json([
             'data' => new LeaveRequestResource($leaveRequest),
+        ]);
+    }
+
+    public function destroy(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $employee = $user->employee;
+        $intern = $user->intern;
+        $freelancer = $user->freelancer;
+
+        $profile = $employee ?? $intern ?? $freelancer;
+        if (! $profile) {
+            return response()->json(['message' => 'Profil pengguna tidak ditemukan.'], 422);
+        }
+
+        $query = LeaveRequest::query();
+        if ($employee) {
+            $query->where('employee_id', $employee->id);
+        } elseif ($intern) {
+            $query->where('intern_id', $intern->id);
+        } elseif ($freelancer) {
+            $query->where('freelancer_id', $freelancer->id);
+        }
+
+        $leaveRequest = $query->find($id);
+
+        if (! $leaveRequest) {
+            return response()->json(['message' => 'Pengajuan cuti tidak ditemukan.'], 404);
+        }
+
+        if ($leaveRequest->status !== 'pending') {
+            return response()->json(['message' => 'Pengajuan yang sudah diproses tidak dapat dibatalkan.'], 422);
+        }
+
+        $leaveRequest->approvalSteps()->delete();
+        $leaveRequest->delete();
+
+        return response()->json([
+            'message' => 'Pengajuan cuti berhasil dibatalkan.',
         ]);
     }
 }
