@@ -56,6 +56,12 @@ class AbsenHariIni extends Page
 
     protected function getHeaderActions(): array
     {
+        $policy = $this->companyPolicy;
+
+        if (! ($policy?->require_face_recognition ?? false)) {
+            return [];
+        }
+
         $profile = $this->getLinkedProfile();
 
         if (! empty($profile?->master_face_photo)) {
@@ -149,6 +155,7 @@ class AbsenHariIni extends Page
         $requirePhoto = $policy?->require_photo ?? false;
         $requireGps = $policy?->require_gps ?? false;
         $requireFaceRecognition = $policy?->require_face_recognition ?? false;
+        $isPhotoNeeded = $requirePhoto || $requireFaceRecognition;
 
         return Action::make('checkIn')
             ->label('Check In Sekarang')
@@ -161,8 +168,8 @@ class AbsenHariIni extends Page
                     ->view('filament.components.camera-capture', [
                         'requireFaceRecognition' => $requireFaceRecognition,
                     ])
-                    ->required($requirePhoto)
-                    ->visible($requirePhoto)
+                    ->required($isPhotoNeeded)
+                    ->visible($isPhotoNeeded)
                     ->validationMessages([
                         'required' => 'Foto selfie wajib diambil. Silakan klik tombol "Ambil Foto" terlebih dahulu.',
                     ]),
@@ -303,6 +310,7 @@ class AbsenHariIni extends Page
         $requirePhoto = $policy?->require_photo ?? false;
         $requireGps = $policy?->require_gps ?? false;
         $requireFaceRecognition = $policy?->require_face_recognition ?? false;
+        $isPhotoNeeded = $requirePhoto || $requireFaceRecognition;
 
         return Action::make('checkOut')
             ->label('Check Out Sekarang')
@@ -315,8 +323,8 @@ class AbsenHariIni extends Page
                     ->view('filament.components.camera-capture', [
                         'requireFaceRecognition' => $requireFaceRecognition,
                     ])
-                    ->required($requirePhoto)
-                    ->visible($requirePhoto)
+                    ->required($isPhotoNeeded)
+                    ->visible($isPhotoNeeded)
                     ->validationMessages([
                         'required' => 'Foto selfie wajib diambil. Silakan klik tombol "Ambil Foto" terlebih dahulu.',
                     ]),

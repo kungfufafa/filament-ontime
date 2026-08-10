@@ -646,6 +646,32 @@ Menambahkan komponen peta interaktif **OpenStreetMap (Leaflet)** ke form lokasi 
 - ✅ **Diagnosis**: Error `LazyLoadingViolationException: Attempted to lazy load [company] on model [App\Models\Employee]` terjadi saat mengakses halaman `/admin/users` karena relasi bertingkat (`employee.company`, `employee.division`, `intern.company`, `intern.division`, `freelancer.company`, `freelancer.division`) belum di-eager-load.
 - ✅ **Solusi**: Diperbarui pada `UserResource.php` method `getEloquentQuery()` untuk memuat seluruh relasi relavan (`with(['roles', 'employee.company', 'employee.division', 'intern.company', 'intern.division', 'freelancer.company', 'freelancer.division'])`), mengeliminasi Lazy Loading Exception secara permanen.
 
+---
+
+## 🙈 FASE 16: Kondisional Visibility UI Face Recognition (Toggle Dynamic UI)
+
+**Tanggal**: 2026-08-10
+
+### Deskripsi
+- Memastikan antarmuka UI terkait *Face Recognition* disembunyikan secara otomatis ketika kebijakan `require_face_recognition` berada pada status **OFF** (dinonaktifkan oleh Superadmin).
+
+### Perubahan File
+1. **`app/Filament/Pages/AbsenHariIni.php`**:
+   - `getHeaderActions()`: Menambahkan pengecekan `$this->companyPolicy?->require_face_recognition`. Jika nonaktif, tombol aksi `updateMasterFaceAction` ("Foto Master Wajah") di pojok kanan atas halaman disembunyikan.
+2. **`resources/views/filament/pages/absen-hari-ini.blade.php`**:
+   - Menambahkan badge indikator status `Face Recognition: Aktif / Nonaktif` pada kartu Aturan Absensi.
+   - Membungkus kartu preview & registrasi "Foto Master Biometrik" dengan kondisi `@if($policy?->require_face_recognition)`. Kartu ini otomatis tersembunyi jika fitur nonaktif.
+3. **`resources/views/filament/components/camera-capture.blade.php`**:
+   - Menyesuaikan *overlay bounding box* oval deteksi wajah agar hanya muncul jika `requireFaceRecognition` bernilai `true`.
+   - Menyembunyikan teks petunjuk *liveness step* TensorFlow.js ketika `requireFaceRecognition` bernilai `false`, menyajikan tampilan kamera selfie bersih (tanpa indikator biometrik) saat fitur dimatikan.
+
+### Hasil Pengujian
+- ✅ **Perbaikan Modal Kamera saat Feature ON**: Memperbarui `AbsenHariIni.php` (`checkInAction` & `checkOutAction`) agar field kamera (`check_in_photo` & `check_out_photo`) selalu **visible & required** jika `$requirePhoto || $requireFaceRecognition`. Sebelumnya jika `require_photo` bernilai `false` namun `require_face_recognition` `true`, elemen kamera tersembunyi dari modal presensi.
+- ✅ **Auto Enable Photo Toggle**: Pada `CompanyResource.php`, mengaktifkan `require_face_recognition` akan otomatis menyalakan toggle `require_photo`.
+- ✅ **Blade Condition pada Preview Kamera**: Menggunakan struktur percabangan Blade `@if($requireFaceRecognition)` ... `@else` ... `@endif` langsung di komponen `camera-capture.blade.php` untuk merender *overlay bounding oval ring*, teks status *liveness step*, dan tombol verifikasi biometrik secara pasti saat fitur **ON**, serta tampilan kamera bersih saat fitur **OFF**.
+- ✅ Formatter: `vendor/bin/pint --dirty --format agent` (Passed cleanly).
+- ✅ Automated Test: `php artisan test --compact --filter=FaceRecognitionTest` (3 passed).
+
 
 
 

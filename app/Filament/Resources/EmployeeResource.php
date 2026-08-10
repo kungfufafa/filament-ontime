@@ -10,6 +10,7 @@ use App\Models\JobLevel;
 use App\Models\JobTitle;
 use App\Models\User;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -18,6 +19,7 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\ViewField;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
@@ -27,6 +29,8 @@ use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 use UnitEnum;
 
 class EmployeeResource extends Resource
@@ -217,6 +221,13 @@ class EmployeeResource extends Resource
                         'Resign Ditolak' => 'secondary',
                         default => 'gray',
                     }),
+
+                TextColumn::make('user.email')
+                    ->label('Akun User')
+                    ->badge()
+                    ->color(fn ($state) => $state ? 'success' : 'warning')
+                    ->formatStateUsing(fn ($state) => $state ? 'Sudah Punya Akun' : 'Belum Ada Akun')
+                    ->searchable(),
             ])
             ->filters([
                 SelectFilter::make('company_id')
@@ -239,6 +250,55 @@ class EmployeeResource extends Resource
                     ]),
             ])
             ->actions([
+                Action::make('createUser')
+                    ->label('Buat Akun')
+                    ->icon('heroicon-o-user-plus')
+                    ->color('success')
+                    ->visible(fn (Employee $record): bool => ! $record->user_id)
+                    ->modalHeading(fn (Employee $record) => "Buat Akun User untuk {$record->full_name}")
+                    ->modalDescription('Tinjau kredensial yang akan dibuat untuk akun karyawan ini.')
+                    ->schema([
+                        TextInput::make('email')
+                            ->label('Alamat Email Login')
+                            ->email()
+                            ->default(fn (Employee $record) => strtolower($record->nip).'@employee.local')
+                            ->required(),
+                        TextInput::make('password')
+                            ->label('Password Awal')
+                            ->default('password123')
+                            ->required(),
+                    ])
+                    ->action(function (Employee $record, array $data) {
+                        $email = $data['email'];
+
+                        if (User::where('email', $email)->exists()) {
+                            Notification::make()
+                                ->title('Gagal Membuat Akun')
+                                ->body("Email {$email} sudah digunakan oleh akun user lain.")
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        $user = User::create([
+                            'name' => $record->full_name,
+                            'email' => $email,
+                            'password' => Hash::make($data['password']),
+                        ]);
+
+                        if ($role = Role::firstOrCreate(['name' => 'Employee'])) {
+                            $user->assignRole($role);
+                        }
+
+                        $record->update(['user_id' => $user->id]);
+
+                        Notification::make()
+                            ->title('Akun User Berhasil Dibuat!')
+                            ->body("Kredensial Login {$record->full_name}:\nEmail: {$email}\nPassword: {$data['password']}")
+                            ->success()
+                            ->send();
+                    }),
                 EditAction::make(),
                 DeleteAction::make(),
             ])

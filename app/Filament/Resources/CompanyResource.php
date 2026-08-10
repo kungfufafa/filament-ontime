@@ -21,6 +21,7 @@ use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -253,6 +254,11 @@ class CompanyResource extends Resource
                         Toggle::make('require_face_recognition')
                             ->label('Wajib Face Recognition (Anti-Spoofing)')
                             ->live()
+                            ->afterStateUpdated(function (Set $set, bool $state) {
+                                if ($state) {
+                                    $set('require_photo', true);
+                                }
+                            })
                             ->default(false),
 
                         TextInput::make('face_match_threshold')
