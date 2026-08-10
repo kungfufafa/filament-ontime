@@ -671,6 +671,7 @@ Menambahkan komponen peta interaktif **OpenStreetMap (Leaflet)** ke form lokasi 
 - ✅ **Blade Condition pada Preview Kamera**: Menggunakan struktur percabangan Blade `@if($requireFaceRecognition)` ... `@else` ... `@endif` langsung di komponen `camera-capture.blade.php` untuk merender *overlay bounding oval ring*, teks status *liveness step*, dan tombol verifikasi biometrik secara pasti saat fitur **ON**, serta tampilan kamera bersih saat fitur **OFF**.
 - ✅ Formatter: `vendor/bin/pint --dirty --format agent` (Passed cleanly).
 - ✅ Automated Test: `php artisan test --compact --filter=FaceRecognitionTest` (3 passed).
+- ✅ Git Commit: `c6ab8bd` (`feat: dynamic toggle UI face recognition dan perbaikan modal kamera presensi`) -> Pushed to `dev-ahtar`.
 
 
 
