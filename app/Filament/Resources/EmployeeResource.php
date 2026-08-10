@@ -30,6 +30,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 use UnitEnum;
 
@@ -261,7 +262,14 @@ class EmployeeResource extends Resource
                         TextInput::make('email')
                             ->label('Alamat Email Login')
                             ->email()
-                            ->default(fn (Employee $record) => strtolower($record->nip).'@employee.local')
+                            ->default(function (Employee $record) {
+                                $username = ! empty($record->email) ? strtolower(explode('@', $record->email)[0]) : Str::slug($record->full_name, '');
+                                if (empty($username)) {
+                                    $username = strtolower($record->nip ?? 'user');
+                                }
+
+                                return "{$username}@ontime.oceanspace.id";
+                            })
                             ->required(),
                         TextInput::make('password')
                             ->label('Password Awal')

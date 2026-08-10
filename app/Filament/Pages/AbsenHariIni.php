@@ -436,4 +436,265 @@ class AbsenHariIni extends Page
                 }
             });
     }
+
+    public function submitCheckIn(?string $photoBase64 = null, ?float $lat = null, ?float $lng = null): void
+    {
+        $user = auth()->user();
+        $employee = $user?->employee;
+        $intern = $user?->intern;
+        $freelancer = $user?->freelancer;
+
+        $profile = $employee ?? $intern ?? $freelancer;
+        if (! $profile) {
+            Notification::make()->title('Profil Tidak Ditemukan')->danger()->send();
+
+            return;
+        }
+
+        $policy = $this->companyPolicy;
+        $company = $profile->company;
+        $requirePhoto = $policy?->require_photo ?? false;
+        $requireFaceRecognition = $policy?->require_face_recognition ?? false;
+
+        $photoPath = null;
+        if ($photoBase64) {
+            $photoPath = $this->saveBase64Photo($photoBase64, 'check_in');
+        }
+
+        if (($requirePhoto || $requireFaceRecognition) && empty($photoPath)) {
+            Notification::make()
+                ->title('Foto Selfie Wajib')
+                ->body('Foto selfie belum berhasil diambil. Posisikan wajah Anda di depan kamera.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        // Face Recognition validation
+        $isFaceVerified = null;
+        $faceMatchScore = null;
+        $faceVerificationNotes = null;
+        $faceFailedAndRequiresApproval = false;
+
+        if ($requireFaceRecognition) {
+            $faceResult = app(FaceRecognitionService::class)->verifyFace(
+                $photoPath,
+                $profile->master_face_photo ?? null,
+                $policy
+            );
+
+            $isFaceVerified = $faceResult['is_matched'];
+            $faceMatchScore = $faceResult['score'];
+            $faceVerificationNotes = $faceResult['notes'];
+
+            if (! $isFaceVerified) {
+                if ($policy->face_fail_action === 'reject') {
+                    Notification::make()
+                        ->title('Verifikasi Wajah Gagal')
+                        ->body($faceVerificationNotes)
+                        ->danger()
+                        ->send();
+
+                    return;
+                } else {
+                    $faceFailedAndRequiresApproval = true;
+                }
+            }
+        }
+
+        // Multi-location Geofence validation
+        $isOutOfBounds = false;
+        if (($policy?->require_gps ?? false) && $lat && $lng && $company) {
+            $result = GeofenceService::validateCompanyGeofence($company, $lat, $lng);
+            if (! $result['is_valid']) {
+                $isOutOfBounds = true;
+            }
+        }
+
+        // Late calculation
+        $now = now();
+        $workStartTimeStr = $policy?->work_start_time ?? '08:00:00';
+        $lateToleranceMinutes = $policy?->late_tolerance_minutes ?? 15;
+        $shiftStartThreshold = now()->setTimeFromTimeString($workStartTimeStr)->addMinutes($lateToleranceMinutes);
+
+        $requiresApproval = $isOutOfBounds || $faceFailedAndRequiresApproval;
+        $status = $requiresApproval ? AttendanceStatus::PendingApproval : AttendanceStatus::OnTime;
+        $lateMinutes = 0;
+
+        if (! $requiresApproval && $now->greaterThan($shiftStartThreshold)) {
+            $status = AttendanceStatus::Late;
+            $lateMinutes = (int) $now->diffInMinutes(now()->setTimeFromTimeString($workStartTimeStr));
+        }
+
+        $attendance = Attendance::create([
+            'employee_id' => $employee?->id,
+            'intern_id' => $intern?->id,
+            'freelancer_id' => $freelancer?->id,
+            'date' => today(),
+            'check_in' => $now,
+            'check_in_photo' => $photoPath,
+            'check_in_lat' => $lat,
+            'check_in_lng' => $lng,
+            'status' => $status,
+            'late_minutes' => $lateMinutes,
+            'is_out_of_bounds' => $isOutOfBounds,
+            'is_face_verified' => $isFaceVerified,
+            'face_match_score' => $faceMatchScore,
+            'face_verification_notes' => $faceVerificationNotes,
+        ]);
+
+        if ($requiresApproval) {
+            app(ApprovalFlowService::class)->generateSteps($attendance, 'geofence');
+
+            $reasonNote = $faceFailedAndRequiresApproval ? 'Verifikasi wajah tidak cocok. ' : '';
+            $reasonNote .= $isOutOfBounds ? 'Lokasi berada di luar geofence.' : '';
+
+            Notification::make()
+                ->title('Check In Dikirim (Menunggu Persetujuan)')
+                ->body($reasonNote.' Presensi berhasil dicatat dan sedang menunggu persetujuan atasan.')
+                ->warning()
+                ->send();
+        } else {
+            Notification::make()
+                ->title('Check In Berhasil!')
+                ->body("Waktu Check In: {$now->format('H:i:s')} WIB (".($status === AttendanceStatus::Late ? "Terlambat {$lateMinutes} menit" : 'Tepat Waktu').')')
+                ->success()
+                ->send();
+        }
+    }
+
+    public function submitCheckOut(?string $photoBase64 = null, ?float $lat = null, ?float $lng = null): void
+    {
+        $attendance = $this->todayAttendance;
+        if (! $attendance) {
+            Notification::make()->title('Belum Check In')->body('Anda belum melakukan Check In hari ini.')->danger()->send();
+
+            return;
+        }
+
+        $policy = $this->companyPolicy;
+        $profile = $this->getLinkedProfile();
+        $company = $profile?->company;
+        $requirePhoto = $policy?->require_photo ?? false;
+        $requireFaceRecognition = $policy?->require_face_recognition ?? false;
+
+        $photoPath = null;
+        if ($photoBase64) {
+            $photoPath = $this->saveBase64Photo($photoBase64, 'check_out');
+        }
+
+        if (($requirePhoto || $requireFaceRecognition) && empty($photoPath)) {
+            Notification::make()
+                ->title('Foto Selfie Wajib')
+                ->body('Foto selfie belum berhasil diambil. Posisikan wajah Anda di depan kamera.')
+                ->danger()
+                ->send();
+
+            return;
+        }
+
+        // Face Recognition validation
+        $isFaceVerified = null;
+        $faceMatchScore = null;
+        $faceVerificationNotes = null;
+        $faceFailedAndRequiresApproval = false;
+
+        if ($requireFaceRecognition) {
+            $faceResult = app(FaceRecognitionService::class)->verifyFace(
+                $photoPath,
+                $profile->master_face_photo ?? null,
+                $policy
+            );
+
+            $isFaceVerified = $faceResult['is_matched'];
+            $faceMatchScore = $faceResult['score'];
+            $faceVerificationNotes = $faceResult['notes'];
+
+            if (! $isFaceVerified) {
+                if ($policy->face_fail_action === 'reject') {
+                    Notification::make()
+                        ->title('Verifikasi Wajah Gagal')
+                        ->body($faceVerificationNotes)
+                        ->danger()
+                        ->send();
+
+                    return;
+                } else {
+                    $faceFailedAndRequiresApproval = true;
+                }
+            }
+        }
+
+        $isOutOfBounds = false;
+        if (($policy?->require_gps ?? false) && $lat && $lng && $company) {
+            $result = GeofenceService::validateCompanyGeofence($company, $lat, $lng);
+            if (! $result['is_valid']) {
+                $isOutOfBounds = true;
+            }
+        }
+
+        $requiresApproval = $isOutOfBounds || $faceFailedAndRequiresApproval;
+        $now = now();
+        $updateData = [
+            'check_out' => $now,
+            'check_out_photo' => $photoPath ?? $attendance->check_out_photo,
+            'check_out_lat' => $lat ?? $attendance->check_out_lat,
+            'check_out_lng' => $lng ?? $attendance->check_out_lng,
+            'is_face_verified' => $isFaceVerified ?? $attendance->is_face_verified,
+            'face_match_score' => $faceMatchScore ?? $attendance->face_match_score,
+            'face_verification_notes' => $faceVerificationNotes ?? $attendance->face_verification_notes,
+        ];
+
+        if ($requiresApproval) {
+            $updateData['is_out_of_bounds'] = $isOutOfBounds || $attendance->is_out_of_bounds;
+            $updateData['status'] = AttendanceStatus::PendingApproval;
+        }
+
+        $attendance->update($updateData);
+
+        if ($requiresApproval) {
+            if ($attendance->approvalSteps()->count() === 0) {
+                app(ApprovalFlowService::class)->generateSteps($attendance, 'geofence');
+            }
+
+            Notification::make()
+                ->title('Check Out Dikirim (Menunggu Persetujuan)')
+                ->body('Presensi Check Out sedang menunggu persetujuan atasan.')
+                ->warning()
+                ->send();
+        } else {
+            Notification::make()
+                ->title('Check Out Berhasil!')
+                ->body("Waktu Check Out: {$now->format('H:i:s')} WIB")
+                ->success()
+                ->send();
+        }
+    }
+
+    private function saveBase64Photo(string $photoBase64, string $prefix): ?string
+    {
+        try {
+            if (preg_match('/^data:image\/(\w+);base64,/', $photoBase64, $type)) {
+                $photoBase64 = substr($photoBase64, strpos($photoBase64, ',') + 1);
+                $type = strtolower($type[1]);
+            } else {
+                $type = 'jpg';
+            }
+
+            $data = base64_decode($photoBase64);
+            if (! $data) {
+                return null;
+            }
+
+            $filename = 'attendances/'.$prefix.'_'.time().'_'.uniqid().'.'.$type;
+            $disk = config('filesystems.default');
+
+            Storage::disk($disk)->put($filename, $data, 'public');
+
+            return $filename;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
 }

@@ -671,7 +671,32 @@ Menambahkan komponen peta interaktif **OpenStreetMap (Leaflet)** ke form lokasi 
 - ✅ **Blade Condition pada Preview Kamera**: Menggunakan struktur percabangan Blade `@if($requireFaceRecognition)` ... `@else` ... `@endif` langsung di komponen `camera-capture.blade.php` untuk merender *overlay bounding oval ring*, teks status *liveness step*, dan tombol verifikasi biometrik secara pasti saat fitur **ON**, serta tampilan kamera bersih saat fitur **OFF**.
 - ✅ Formatter: `vendor/bin/pint --dirty --format agent` (Passed cleanly).
 - ✅ Automated Test: `php artisan test --compact --filter=FaceRecognitionTest` (3 passed).
-- ✅ Git Commit: `c6ab8bd` (`feat: dynamic toggle UI face recognition dan perbaikan modal kamera presensi`) -> Pushed to `dev-ahtar`.
+
+---
+
+## ⚡ FASE 17: Format Email `@ontime.oceanspace.id` & UI Presensi Mandiri Inline Live Camera (1-Click Presensi)
+
+**Tanggal**: 2026-08-10
+
+### Deskripsi
+1. **Format Email Pembuatan Akun**:
+   - Menyesuaikan penjelanaan email otomatis saat membuat akun user baru di `EmployeeResource.php`, `InternResource.php`, `FreelanceResource.php`, `EditIntern.php`, dan `EditFreelancer.php` ke format `username@ontime.oceanspace.id`. Username diambil dari slug nama lengkap atau NIP/NIS/ID.
+2. **UI Presensi Mandiri Simpel (Inline Live Camera & 1-Click Button)**:
+   - Menyajikan *Live Camera Preview* interaktif langsung di kartu utama halaman **Presensi Mandiri** ([absen-hari-ini.blade.php](file:///c:/Users/AHTAR/filament-ontime/resources/views/filament/pages/absen-hari-ini.blade.php)).
+   - Pengguna cukup mengeklik **1 Tombol Tunggal** (`🟢 Check In Sekarang` atau `🔴 Check Out Sekarang` menyesuaikan status). Klik ini secara otomatis mengambil foto snapshot kamera, mendeteksi lokasi GPS, dan memproses presensi langsung tanpa modal bertahap.
+
+### Perubahan File
+- [EmployeeResource.php](file:///c:/Users/AHTAR/filament-ontime/app/Filament/Resources/EmployeeResource.php)
+- [InternResource.php](file:///c:/Users/AHTAR/filament-ontime/app/Filament/Resources/InternResource.php)
+- [FreelanceResource.php](file:///c:/Users/AHTAR/filament-ontime/app/Filament/Resources/FreelanceResource.php)
+- [EditIntern.php](file:///c:/Users/AHTAR/filament-ontime/app/Filament/Resources/InternResource/Pages/EditIntern.php)
+- [EditFreelancer.php](file:///c:/Users/AHTAR/filament-ontime/app/Filament/Resources/FreelanceResource/Pages/EditFreelancer.php)
+- [AbsenHariIni.php](file:///c:/Users/AHTAR/filament-ontime/app/Filament/Pages/AbsenHariIni.php)
+- [absen-hari-ini.blade.php](file:///c:/Users/AHTAR/filament-ontime/resources/views/filament/pages/absen-hari-ini.blade.php)
+
+### Hasil Pengujian
+- ✅ Formatter: `vendor/bin/pint --dirty --format agent` (Clean & formatted).
+- ✅ Automated Test: `php artisan test --compact --filter=FaceRecognitionTest` (Passed).
 
 
 

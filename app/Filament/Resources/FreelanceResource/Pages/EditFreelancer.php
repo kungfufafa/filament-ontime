@@ -8,6 +8,7 @@ use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 
 class EditFreelancer extends EditRecord
@@ -27,7 +28,11 @@ class EditFreelancer extends EditRecord
                 ->modalDescription('Akun user akan dibuat otomatis menggunakan data nama dan email/ID freelancer.')
                 ->action(function () {
                     $record = $this->record;
-                    $email = $record->email ?: strtolower($record->freelancer_number).'@freelance.local';
+                    $username = ! empty($record->email) ? strtolower(explode('@', $record->email)[0]) : Str::slug($record->full_name, '');
+                    if (empty($username)) {
+                        $username = strtolower($record->freelancer_number ?? 'user');
+                    }
+                    $email = "{$username}@ontime.oceanspace.id";
 
                     if (User::where('email', $email)->exists()) {
                         Notification::make()

@@ -8,6 +8,7 @@ use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 
 class EditIntern extends EditRecord
@@ -27,7 +28,11 @@ class EditIntern extends EditRecord
                 ->modalDescription('Akun user akan dibuat otomatis menggunakan data nama dan email/NIS magang.')
                 ->action(function () {
                     $record = $this->record;
-                    $email = $record->email ?: strtolower($record->nis).'@magang.local';
+                    $username = ! empty($record->email) ? strtolower(explode('@', $record->email)[0]) : Str::slug($record->full_name, '');
+                    if (empty($username)) {
+                        $username = strtolower($record->nis ?? 'user');
+                    }
+                    $email = "{$username}@ontime.oceanspace.id";
 
                     if (User::where('email', $email)->exists()) {
                         Notification::make()

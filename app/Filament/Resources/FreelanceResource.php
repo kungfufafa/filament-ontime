@@ -30,6 +30,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 use UnitEnum;
 
@@ -272,7 +273,14 @@ class FreelanceResource extends Resource
                         TextInput::make('email')
                             ->label('Alamat Email Login')
                             ->email()
-                            ->default(fn (Freelancer $record) => $record->email ?: strtolower($record->freelancer_number).'@freelance.local')
+                            ->default(function (Freelancer $record) {
+                                $username = ! empty($record->email) ? strtolower(explode('@', $record->email)[0]) : Str::slug($record->full_name, '');
+                                if (empty($username)) {
+                                    $username = strtolower($record->freelancer_number ?? 'user');
+                                }
+
+                                return "{$username}@ontime.oceanspace.id";
+                            })
                             ->required(),
                         TextInput::make('password')
                             ->label('Password Awal')
