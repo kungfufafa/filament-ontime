@@ -671,8 +671,65 @@ Menambahkan komponen peta interaktif **OpenStreetMap (Leaflet)** ke form lokasi 
 - ✅ **Blade Condition pada Preview Kamera**: Menggunakan struktur percabangan Blade `@if($requireFaceRecognition)` ... `@else` ... `@endif` langsung di komponen `camera-capture.blade.php` untuk merender *overlay bounding oval ring*, teks status *liveness step*, dan tombol verifikasi biometrik secara pasti saat fitur **ON**, serta tampilan kamera bersih saat fitur **OFF**.
 - ✅ Formatter: `vendor/bin/pint --dirty --format agent` (Passed cleanly).
 - ✅ Automated Test: `php artisan test --compact --filter=FaceRecognitionTest` (3 passed).
-- ✅ Git Commit: `c6ab8bd` (`feat: dynamic toggle UI face recognition dan perbaikan modal kamera presensi`) -> Pushed to `dev-ahtar`.
 
+
+---
+
+## 📷 FASE 17: Penyederhanaan UI Presensi Mandiri (Preview Kamera Live, Tombol Berdampingan & Mobile-First)
+
+**Tanggal**: 2026-08-10
+
+### Deskripsi
+- Menyederhanakan antarmuka UI *Presensi Mandiri* (`AbsenHariIni.php` & `absen-hari-ini.blade.php`) dengan mengutamakan pengalaman tampilan seluler (*mobile-first priority*).
+- Mengintegrasikan preview kamera video streaming langsung (*live camera stream preview*) di bagian atas halaman Presensi Mandiri.
+- Menempatkan **Tombol Check In** (Emerald) dan **Tombol Check Out** (Rose) secara **berdampingan** (*side-by-side*) langsung di bawah preview kamera.
+- Menerapkan logika penguncian tombol otomatis:
+  - Sebelum Check In: Tombol **Check In** aktif (1-click selfie & submit), sedangkan Tombol **Check Out** terkunci (*disabled*).
+  - Setelah Check In: Tombol **Check In** dikunci (*"Sudah Check In"*), sedangkan Tombol **Check Out** aktif (*enabled*).
+- Memindahkan posisi kartu rekapitulasi **Jam Check-In & Jam Check-Out** ke **bagian bawah** halaman untuk konsistensi visual pada layar HP/Mobile.
+
+### Perubahan File
+1. **`resources/views/filament/components/camera-capture.blade.php`**:
+   - Menata ulang layout tombol dengan *grid 2 kolom* (`grid-cols-2`) side-by-side untuk tombol **Check In** dan **Check Out**.
+   - Menyesuaikan penanganan status `disabled` dan penanda mode aksi saat pengunggahan foto selfie & pemrosesan presensi.
+2. **`resources/views/filament/pages/absen-hari-ini.blade.php`**:
+   - Memindahkan komponen preview kamera & tombol berdampingan ke posisi atas.
+   - Memindahkan kartu status **Jam Check-In** & **Jam Check-Out** ke bagian paling bawah kartu.
+   - Mengoptimalkan responsivitas layout grid & padding untuk tampilan layar HP/mobile.
+
+### Hasil Pengujian
+- ✅ Formatter: `vendor/bin/pint --dirty --format agent` (Passed cleanly).
+- ✅ Automated Tests: `php artisan test --compact --filter=AttendanceTest` (3 passed, 22 assertions).
+
+---
+
+## 🚀 FASE 18: Integrasi Presensi Mandiri Langsung pada Dashboard Utama
+
+**Tanggal**: 2026-08-10
+
+### Deskripsi
+- Memindahkan tampilan widget *Presensi Mandiri* (Preview Kamera Live Stream + Tombol Check In & Check Out Berdampingan + Rekapitulasi Jam Presensi) langsung ke halaman utama **Dashboard** (`/admin`).
+- Seluruh pengguna yang memiliki akses presensi (Karyawan, Magang, Freelancer) kini dapat langsung melakukan Check In / Check Out secara instan dari Dashboard begitu berhasil login tanpa perlu berpindah ke menu terpisah.
+- Mengabstraksikan fungsi presensi mandiri ke dalam Trait `HasPresensiActions` untuk memastikan prinsip *DRY (Don't Repeat Yourself)* antara Widget Dashboard dan Halaman Presensi Mandiri.
+
+### Perubahan File
+1. **`app/Filament/Concerns/HasPresensiActions.php`** [BARU]:
+   - Trait penampung method bersama: `getTodayAttendanceProperty()`, `getLinkedProfile()`, `getCompanyPolicyProperty()`, `processCheckIn()`, dan `processCheckOut()`.
+2. **`app/Filament/Widgets/PresensiWidget.php`** [BARU]:
+   - Widget Dashboard Filament yang menggunakan Trait `HasPresensiActions`.
+   - `canView()`: Menentukan hak akses widget hanya bagi akun Karyawan, Peserta Magang, dan Freelancer (dan tersembunyi bagi Superadmin).
+   - Diurutkan pada `$sort = 1` agar tampil tepat di bawah profil pengguna pada Dashboard.
+3. **`resources/views/filament/widgets/presensi-widget.blade.php`** [BARU]:
+   - View Blade widget Dashboard yang merender preview kamera live stream, tombol aksi side-by-side (Check In & Check Out), serta rekapitulasi status jam presensi di bagian bawah.
+4. **`app/Providers/Filament/AdminPanelProvider.php`**:
+   - Mendaftarkan `PresensiWidget::class` pada array `$panel->widgets()`.
+5. **`app/Filament/Pages/AbsenHariIni.php`**:
+   - Diperbarui untuk menggunakan Trait `HasPresensiActions`.
+
+### Hasil Pengujian
+- ✅ Formatter: `vendor/bin/pint --dirty --format agent` (Passed cleanly).
+- ✅ Automated Tests: `php artisan test --compact --filter=AttendanceTest` (3 passed, 22 assertions).
+- ✅ Frontend Build: `npm run build` (Passed in 5.54s).
 
 
 

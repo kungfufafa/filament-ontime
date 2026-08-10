@@ -1,17 +1,17 @@
-@php
+<?php
     $requireFaceRecognition = $requireFaceRecognition ?? false;
     $requireGps = $requireGps ?? false;
     $hasCheckedIn = $hasCheckedIn ?? false;
     $hasCheckedOut = $hasCheckedOut ?? false;
-@endphp
+?>
 
 <!-- TensorFlow.js & Face Landmarks Detection CDN -->
-@if($requireFaceRecognition)
+<?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($requireFaceRecognition): ?>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.17.0/dist/tf-core.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.17.0/dist/tf-converter.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.17.0/dist/tf-backend-webgl.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@1.0.5/dist/face-landmarks-detection.min.js"></script>
-@endif
+<?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
 <div x-data="{
     uploading: false,
@@ -23,18 +23,18 @@
     isMirrored: true,
 
     // GPS State
-    requireGps: {{ $requireGps ? 'true' : 'false' }},
+    requireGps: <?php echo e($requireGps ? 'true' : 'false'); ?>,
     lat: null,
     lng: null,
     gpsLoading: false,
     gpsError: null,
 
     // Config & TensorFlow.js State
-    requireFaceRecognition: {{ $requireFaceRecognition ? 'true' : 'false' }},
+    requireFaceRecognition: <?php echo e($requireFaceRecognition ? 'true' : 'false'); ?>,
     detector: null,
     faceDetected: false,
-    livenessPassed: !{{ $requireFaceRecognition ? 'true' : 'false' }},
-    livenessStep: {{ $requireFaceRecognition ? '\'Mempersiapkan Deteksi Wajah...\'' : '\'Kamera Siap. Posisikan wajah Anda.\'' }},
+    livenessPassed: !<?php echo e($requireFaceRecognition ? 'true' : 'false'); ?>,
+    livenessStep: <?php echo e($requireFaceRecognition ? '\'Mempersiapkan Deteksi Wajah...\'' : '\'Kamera Siap. Posisikan wajah Anda.\''); ?>,
     faceFrames: 0,
     animFrameId: null,
 
@@ -278,7 +278,7 @@
         context.restore();
 
         const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-        const csrfToken = document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '{{ csrf_token() }}';
+        const csrfToken = document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '<?php echo e(csrf_token()); ?>';
 
         const processLivewire = (photoPath) => {
             const currentLat = this.lat ? parseFloat(this.lat) : null;
@@ -319,7 +319,7 @@
     },
 
     uploadSelfieApi(formData, csrfToken, callback) {
-        fetch('{{ route('upload.selfie') }}', {
+        fetch('<?php echo e(route('upload.selfie')); ?>', {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': csrfToken,
@@ -367,7 +367,7 @@ class="space-y-4 max-w-sm mx-auto">
         <video x-ref="video" autoplay playsinline muted :class="{ '-scale-x-100': isMirrored }" class="w-full h-full object-cover"></video>
 
         <!-- Face Bounding Box Overlay (TF.JS) -->
-        @if($requireFaceRecognition)
+        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($requireFaceRecognition): ?>
             <template x-if="cameraActive && !uploading">
                 <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
                     <div class="w-48 h-56 border-2 border-dashed rounded-full transition-all duration-300 flex flex-col items-center justify-between py-3"
@@ -380,7 +380,7 @@ class="space-y-4 max-w-sm mx-auto">
                     </div>
                 </div>
             </template>
-        @endif
+        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
         <!-- Flip Camera Button (top right) -->
         <button type="button" @click="toggleCamera()" title="Ganti Kamera" class="absolute top-3 right-3 p-2 bg-black/50 hover:bg-black/80 backdrop-blur text-white rounded-full transition border border-white/20 shadow">
@@ -417,15 +417,15 @@ class="space-y-4 max-w-sm mx-auto">
 
         <!-- Status Pill Overlay (Bottom inside video) -->
         <div class="absolute bottom-2 left-2 right-2 flex flex-col gap-1 z-10 pointer-events-auto">
-            @if($requireFaceRecognition)
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($requireFaceRecognition): ?>
                 <div class="text-center text-[10px] py-1 px-2 rounded-md border flex items-center justify-center gap-1 font-medium transition backdrop-blur-md"
                      :class="livenessPassed ? 'text-emerald-300 bg-emerald-950/80 border-emerald-700/60' : 'text-amber-300 bg-amber-950/80 border-amber-700/60'">
                     <svg x-show="livenessPassed" class="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                     <span x-text="livenessStep"></span>
                 </div>
-            @endif
+            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
-            @if($requireGps)
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($requireGps): ?>
                 <div class="flex items-center justify-between text-[10px] px-2.5 py-1 rounded-md bg-gray-950/80 backdrop-blur-md border border-gray-800 text-gray-300">
                     <div class="flex items-center gap-1">
                         <svg class="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path></svg>
@@ -443,7 +443,7 @@ class="space-y-4 max-w-sm mx-auto">
                         Refresh
                     </button>
                 </div>
-            @endif
+            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
         </div>
     </div>
 
@@ -452,8 +452,8 @@ class="space-y-4 max-w-sm mx-auto">
         <!-- Tombol Check In -->
         <button type="button"
                 @click="submitAttendance('check_in')"
-                :disabled="uploading || !cameraActive || {{ $hasCheckedIn ? 'true' : 'false' }} || (requireFaceRecognition && !livenessPassed)"
-                class="py-3 px-3 text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 {{ $hasCheckedIn ? 'bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed border border-gray-300 dark:border-gray-700' : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20 active:scale-95' }} disabled:opacity-50 disabled:cursor-not-allowed">
+                :disabled="uploading || !cameraActive || <?php echo e($hasCheckedIn ? 'true' : 'false'); ?> || (requireFaceRecognition && !livenessPassed)"
+                class="py-3 px-3 text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 <?php echo e($hasCheckedIn ? 'bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed border border-gray-300 dark:border-gray-700' : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20 active:scale-95'); ?> disabled:opacity-50 disabled:cursor-not-allowed">
             <template x-if="uploading && submitMode === 'check_in'">
                 <div class="flex items-center gap-1">
                     <svg class="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -463,7 +463,7 @@ class="space-y-4 max-w-sm mx-auto">
             <template x-if="!(uploading && submitMode === 'check_in')">
                 <div class="flex items-center gap-1.5">
                     <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
-                    <span>{{ $hasCheckedIn ? 'Sudah Check In' : 'Check In' }}</span>
+                    <span><?php echo e($hasCheckedIn ? 'Sudah Check In' : 'Check In'); ?></span>
                 </div>
             </template>
         </button>
@@ -471,8 +471,8 @@ class="space-y-4 max-w-sm mx-auto">
         <!-- Tombol Check Out -->
         <button type="button"
                 @click="submitAttendance('check_out')"
-                :disabled="uploading || !cameraActive || {{ !$hasCheckedIn || $hasCheckedOut ? 'true' : 'false' }} || (requireFaceRecognition && !livenessPassed)"
-                class="py-3 px-3 text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 {{ !$hasCheckedIn || $hasCheckedOut ? 'bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed border border-gray-300 dark:border-gray-700' : 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/20 active:scale-95' }} disabled:opacity-50 disabled:cursor-not-allowed">
+                :disabled="uploading || !cameraActive || <?php echo e(!$hasCheckedIn || $hasCheckedOut ? 'true' : 'false'); ?> || (requireFaceRecognition && !livenessPassed)"
+                class="py-3 px-3 text-xs sm:text-sm font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 <?php echo e(!$hasCheckedIn || $hasCheckedOut ? 'bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed border border-gray-300 dark:border-gray-700' : 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-600/20 active:scale-95'); ?> disabled:opacity-50 disabled:cursor-not-allowed">
             <template x-if="uploading && submitMode === 'check_out'">
                 <div class="flex items-center gap-1">
                     <svg class="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -482,9 +482,10 @@ class="space-y-4 max-w-sm mx-auto">
             <template x-if="!(uploading && submitMode === 'check_out')">
                 <div class="flex items-center gap-1.5">
                     <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                    <span>{{ $hasCheckedOut ? 'Sudah Check Out' : 'Check Out' }}</span>
+                    <span><?php echo e($hasCheckedOut ? 'Sudah Check Out' : 'Check Out'); ?></span>
                 </div>
             </template>
         </button>
     </div>
 </div>
+<?php /**PATH C:\Users\AHTAR\filament-ontime\resources\views/filament/components/camera-capture.blade.php ENDPATH**/ ?>

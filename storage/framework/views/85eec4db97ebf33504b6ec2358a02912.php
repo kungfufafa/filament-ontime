@@ -76,45 +76,50 @@
                                 GPS: <?php echo e($policy?->require_gps ? 'Wajib (Geofence ' . ($policy->geofence_radius_meters ?? 100) . 'm)' : 'Tidak Wajib'); ?>
 
                             </span>
+                            <span class="px-2 py-0.5 text-xs rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                                Face Recognition: <?php echo e($policy?->require_face_recognition ? 'Aktif' : 'Nonaktif'); ?>
+
+                            </span>
                         </div>
                     </div>
 
-                    <!-- Master Face Photo Preview & Edit -->
-                    <div class="pt-3 border-t border-gray-100 dark:border-gray-800">
-                        <span class="block text-xs font-medium text-gray-500 mb-1.5">Foto Master Biometrik</span>
-                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(! empty($profile->master_face_photo)): ?>
-                            <?php
-                                $disk = config('filesystems.default');
-                                $masterPhotoUrl = '';
-                                try {
-                                    if ($disk === 's3') {
-                                        $masterPhotoUrl = \Illuminate\Support\Facades\Storage::disk('s3')->temporaryUrl($profile->master_face_photo, now()->addMinutes(60));
-                                    } else {
-                                        $masterPhotoUrl = \Illuminate\Support\Facades\Storage::disk($disk)->url($profile->master_face_photo);
-                                    }
-                                } catch (\Exception $e) {
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($policy?->require_face_recognition): ?>
+                        <!-- Master Face Photo Preview & Edit -->
+                        <div class="pt-3 border-t border-gray-100 dark:border-gray-800">
+                            <span class="block text-xs font-medium text-gray-500 mb-1.5">Foto Master Biometrik</span>
+                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(! empty($profile->master_face_photo)): ?>
+                                <?php
+                                    $disk = config('filesystems.default');
                                     $masterPhotoUrl = '';
-                                }
-                            ?>
-                            <div class="flex items-center justify-between p-2.5 bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 rounded-lg">
-                                <div class="flex items-center gap-2.5">
-                                    <div class="relative w-10 h-10 rounded-full overflow-hidden border-2 border-emerald-500 shadow-sm shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($masterPhotoUrl): ?>
-                                            <img src="<?php echo e($masterPhotoUrl); ?>" class="w-full h-full object-cover" />
-                                        <?php else: ?>
-                                            <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
-                                    </div>
-                                    <div>
-                                        <div class="flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-                                            <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                            <span>Biometrik Terdaftar</span>
+                                    try {
+                                        if ($disk === 's3') {
+                                            $masterPhotoUrl = \Illuminate\Support\Facades\Storage::disk('s3')->temporaryUrl($profile->master_face_photo, now()->addMinutes(60));
+                                        } else {
+                                            $masterPhotoUrl = \Illuminate\Support\Facades\Storage::disk($disk)->url($profile->master_face_photo);
+                                        }
+                                    } catch (\Exception $e) {
+                                        $masterPhotoUrl = '';
+                                    }
+                                ?>
+                                <div class="flex items-center justify-between p-2.5 bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 rounded-lg">
+                                    <div class="flex items-center gap-2.5">
+                                        <div class="relative w-10 h-10 rounded-full overflow-hidden border-2 border-emerald-500 shadow-sm shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($masterPhotoUrl): ?>
+                                                <img src="<?php echo e($masterPhotoUrl); ?>" class="w-full h-full object-cover" />
+                                            <?php else: ?>
+                                                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                                         </div>
-                                        <span class="text-[10px] text-gray-500 dark:text-gray-400">SIAP UNTUK ABSENSI</span>
+                                        <div>
+                                            <div class="flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                                                <svg class="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                                <span>Biometrik Terdaftar</span>
+                                            </div>
+                                            <span class="text-[10px] text-gray-500 dark:text-gray-400">SIAP UNTUK ABSENSI</span>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="shrink-0">
-                                    <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
+                                    <div class="shrink-0">
+                                        <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['wire:click' => 'mountAction(\'updateMasterFace\')','size' => 'xs','color' => 'gray','icon' => 'heroicon-m-pencil-square']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('filament::button'); ?>
@@ -126,8 +131,8 @@
 <?php $component->withAttributes(['wire:click' => 'mountAction(\'updateMasterFace\')','size' => 'xs','color' => 'gray','icon' => 'heroicon-m-pencil-square']); ?>
 <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
 
-                                        Ubah
-                                     <?php echo $__env->renderComponent(); ?>
+                                            Ubah
+                                         <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
 <?php $attributes = $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
@@ -137,16 +142,16 @@
 <?php $component = $__componentOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
 <?php unset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
 <?php endif; ?>
+                                    </div>
                                 </div>
-                            </div>
-                        <?php else: ?>
-                            <div class="flex items-center justify-between p-2.5 bg-amber-50/60 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 rounded-lg">
-                                <div class="text-xs text-amber-700 dark:text-amber-300">
-                                    <span class="font-semibold block">Belum Terdaftar</span>
-                                    <span class="text-[10px]">Daftarkan foto master wajah Anda</span>
-                                </div>
-                                <div class="shrink-0">
-                                    <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
+                            <?php else: ?>
+                                <div class="flex items-center justify-between p-2.5 bg-amber-50/60 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 rounded-lg">
+                                    <div class="text-xs text-amber-700 dark:text-amber-300">
+                                        <span class="font-semibold block">Belum Terdaftar</span>
+                                        <span class="text-[10px]">Daftarkan foto master wajah Anda</span>
+                                    </div>
+                                    <div class="shrink-0">
+                                        <?php if (isset($component)) { $__componentOriginal6330f08526bbb3ce2a0da37da512a11f = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.button.index','data' => ['wire:click' => 'mountAction(\'updateMasterFace\')','size' => 'xs','color' => 'amber','icon' => 'heroicon-m-camera']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('filament::button'); ?>
@@ -158,8 +163,8 @@
 <?php $component->withAttributes(['wire:click' => 'mountAction(\'updateMasterFace\')','size' => 'xs','color' => 'amber','icon' => 'heroicon-m-camera']); ?>
 <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
 
-                                        Daftar
-                                     <?php echo $__env->renderComponent(); ?>
+                                            Daftar
+                                         <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
 <?php if (isset($__attributesOriginal6330f08526bbb3ce2a0da37da512a11f)): ?>
 <?php $attributes = $__attributesOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
@@ -169,66 +174,101 @@
 <?php $component = $__componentOriginal6330f08526bbb3ce2a0da37da512a11f; ?>
 <?php unset($__componentOriginal6330f08526bbb3ce2a0da37da512a11f); ?>
 <?php endif; ?>
+                                    </div>
                                 </div>
-                            </div>
-                        <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
-                    </div>
+                            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                        </div>
+                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </div>
             </div>
 
             <!-- Status Absensi Hari Ini -->
-            <div class="md:col-span-2 p-6 bg-white dark:bg-gray-900 shadow-sm border border-gray-200 dark:border-gray-800 rounded-xl flex flex-col justify-between">
-                <div>
-                    <div class="flex items-center justify-between">
-                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Status Absensi Hari Ini</h3>
-                        <span class="text-sm font-medium text-gray-500"><?php echo e(now()->translatedFormat('l, d F Y')); ?></span>
+            <div class="md:col-span-2 p-5 sm:p-6 bg-white dark:bg-gray-900 shadow-sm border border-gray-200 dark:border-gray-800 rounded-xl flex flex-col justify-between space-y-6">
+                <!-- Header -->
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-base sm:text-lg font-bold text-gray-900 dark:text-white">Presensi Mandiri</h3>
+                        <p class="text-xs text-gray-500">Live Camera & Realtime Verification</p>
                     </div>
+                    <span class="text-xs font-semibold px-2.5 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">
+                        <?php echo e(now()->translatedFormat('l, d F Y')); ?>
 
-                    <div class="mt-6 grid grid-cols-2 gap-4">
-                        <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
-                            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Jam Check-In</span>
-                            <div class="mt-2 text-2xl font-black text-gray-900 dark:text-white">
+                    </span>
+                </div>
+
+                <!-- Section Kamera Live Stream Preview & Side-by-Side Action Buttons -->
+                <div>
+                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!$attendance || !$attendance->check_out): ?>
+                        <?php echo $__env->make('filament.components.camera-capture', [
+                            'requireFaceRecognition' => $policy?->require_face_recognition ?? false,
+                            'requireGps' => $policy?->require_gps ?? false,
+                            'hasCheckedIn' => !empty($attendance?->check_in),
+                            'hasCheckedOut' => !empty($attendance?->check_out),
+                        ], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+                    <?php else: ?>
+                        <!-- Absensi Lengkap -->
+                        <div class="p-5 bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl text-center space-y-2 max-w-sm mx-auto">
+                            <div class="w-12 h-12 mx-auto rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300 flex items-center justify-center shadow-sm">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            </div>
+                            <h4 class="text-base font-bold text-emerald-900 dark:text-emerald-200">Absensi Hari Ini Selesai</h4>
+                            <p class="text-xs text-emerald-700 dark:text-emerald-300">
+                                Check In: <span class="font-bold"><?php echo e($attendance->check_in?->format('H:i:s')); ?></span> | Check Out: <span class="font-bold"><?php echo e($attendance->check_out?->format('H:i:s')); ?></span>
+                            </p>
+                        </div>
+                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                </div>
+
+                <!-- Status Jam Check-In & Check-Out (DI BAWAH) -->
+                <div class="pt-4 border-t border-gray-100 dark:border-gray-800">
+                    <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Status Jam Presensi Hari Ini</h4>
+                    <div class="grid grid-cols-2 gap-3 sm:gap-4">
+                        <!-- Jam Check-In -->
+                        <div class="p-3.5 sm:p-4 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800">
+                            <span class="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider">Jam Check-In</span>
+                            <div class="mt-1 text-xl sm:text-2xl font-black text-gray-900 dark:text-white">
                                 <?php echo e($attendance?->check_in ? $attendance->check_in->format('H:i:s') . ' WIB' : '--:--:--'); ?>
 
                             </div>
-                            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($attendance?->status): ?>
-                                <div class="mt-2">
+                            <div class="mt-1.5">
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($attendance?->check_in): ?>
                                     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($attendance->status === 'late'): ?>
-                                        <span class="px-2 py-1 text-xs font-semibold rounded-md bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                                        <span class="inline-block px-2 py-0.5 text-[10px] sm:text-xs font-semibold rounded bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200 border border-amber-200 dark:border-amber-800">
                                             Terlambat (<?php echo e($attendance->late_minutes); ?>m)
                                         </span>
                                     <?php else: ?>
-                                        <span class="px-2 py-1 text-xs font-semibold rounded-md bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                                        <span class="inline-block px-2 py-0.5 text-[10px] sm:text-xs font-semibold rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800">
                                             Tepat Waktu
                                         </span>
                                     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
-                                </div>
-                            <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                                <?php else: ?>
+                                    <span class="inline-block px-2 py-0.5 text-[10px] sm:text-xs font-medium rounded bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                                        Belum Check In
+                                    </span>
+                                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                            </div>
                         </div>
 
-                        <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
-                            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Jam Check-Out</span>
-                            <div class="mt-2 text-2xl font-black text-gray-900 dark:text-white">
+                        <!-- Jam Check-Out -->
+                        <div class="p-3.5 sm:p-4 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800">
+                            <span class="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider">Jam Check-Out</span>
+                            <div class="mt-1 text-xl sm:text-2xl font-black text-gray-900 dark:text-white">
                                 <?php echo e($attendance?->check_out ? $attendance->check_out->format('H:i:s') . ' WIB' : '--:--:--'); ?>
 
                             </div>
+                            <div class="mt-1.5">
+                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($attendance?->check_out): ?>
+                                    <span class="inline-block px-2 py-0.5 text-[10px] sm:text-xs font-semibold rounded bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200 border border-blue-200 dark:border-blue-800">
+                                        Check-Out Selesai
+                                    </span>
+                                <?php else: ?>
+                                    <span class="inline-block px-2 py-0.5 text-[10px] sm:text-xs font-medium rounded bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                                        Belum Check Out
+                                    </span>
+                                <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
+                            </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- Tombol Aksi Check-In & Check-Out -->
-                <div class="mt-6 flex flex-wrap items-center gap-4">
-                    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(!$attendance): ?>
-                        <?php echo e($this->checkInAction); ?>
-
-                    <?php elseif($attendance && !$attendance->check_out): ?>
-                        <?php echo e($this->checkOutAction); ?>
-
-                    <?php else: ?>
-                        <div class="px-4 py-2 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg text-green-800 dark:text-green-200 text-sm font-semibold">
-                            ✓ Absensi Lengkap Hari Ini (Check In & Check Out Selesai)
-                        </div>
-                    <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
                 </div>
             </div>
         </div>
