@@ -63,8 +63,7 @@ class LeaveRequestResource extends Resource
     {
         $user = auth()->user();
 
-        // Allow employees, interns, and freelancers with the Employee role
-        return $user?->hasAnyRole(['Employee', 'BOD']) ?? false;
+        return (bool) ($user?->employee || $user?->intern || $user?->freelancer || $user?->hasAnyRole(['Employee', 'Intern', 'Freelancer', 'BOD']));
     }
 
     public static function canEdit(Model $record): bool
@@ -167,12 +166,26 @@ class LeaveRequestResource extends Resource
                         Grid::make(2)->schema([
                             Select::make('leave_type')
                                 ->label('Jenis Pengajuan')
-                                ->options([
-                                    'annual_leave' => 'Cuti Tahunan (Potong Kuota)',
-                                    'permission' => 'Izin Tidak Masuk',
-                                    'sick' => 'Sakit (Dengan/Tanpa Surat Dokter)',
-                                ])
-                                ->default('annual_leave')
+                                ->options(function () {
+                                    $user = auth()->user();
+                                    if ($user?->freelancer || $user?->hasRole('Freelancer')) {
+                                        return [
+                                            'permission' => 'Izin Tidak Masuk',
+                                            'sick' => 'Sakit (Dengan/Tanpa Surat Dokter)',
+                                        ];
+                                    }
+
+                                    return [
+                                        'annual_leave' => 'Cuti Tahunan (Potong Kuota)',
+                                        'permission' => 'Izin Tidak Masuk',
+                                        'sick' => 'Sakit (Dengan/Tanpa Surat Dokter)',
+                                    ];
+                                })
+                                ->default(function () {
+                                    $user = auth()->user();
+
+                                    return ($user?->freelancer || $user?->hasRole('Freelancer')) ? 'permission' : 'annual_leave';
+                                })
                                 ->required()
                                 ->live(),
 

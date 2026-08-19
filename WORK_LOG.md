@@ -873,3 +873,32 @@ Menambahkan komponen peta interaktif **OpenStreetMap (Leaflet)** ke form lokasi 
   - ✅ **Notification Test (`purpose: notification`)**: `api_sent = true`, `status = HTTP 201 (provider_accepted)`.
   - ✅ **OTP Test (`purpose: otp`)**: `api_sent = true`, `status = HTTP 201 (provider_accepted)`.
 
+---
+
+## 🏖️ FASE 23: Perbaikan Hak Akses Pengajuan Cuti / Izin untuk Anak Magang & Freelance (Eliminasi 403 Forbidden)
+
+**Tanggal**: 2026-08-19
+
+### Masalah
+- Ketika anak magang (profil `Intern` dengan Role `Intern`) mencoba mengakses menu atau mengajukan cuti / izin di Filament (`/admin/leave-requests/create`), sistem mengembalikan `403 Forbidden` dan aksi tombol "Buat Pengajuan" tidak tersedia karena `LeaveRequestResource::canCreate()` dan `CreateLeaveRequest` dibatasi secara kaku hanya pada Role `['Employee', 'BOD']`.
+
+### Solusi & Perbaikan
+1. **`app/Filament/Resources/LeaveRequests/LeaveRequestResource.php`**:
+   - Memperbarui `canCreate()` agar mengecek profil pengguna secara fleksibel: `(bool) ($user?->employee || $user?->intern || $user?->freelancer || $user?->hasAnyRole(['Employee', 'Intern', 'Freelancer', 'BOD']))`.
+   - Menjadikan opsi field `Select` jenis pengajuan (`leave_type`) dinamis: khusus Freelancer, form otomatis menyajikan opsi relevan (**Izin Tidak Masuk** & **Sakit**) dan default ke `permission`, mencegah kesalahan pemilihan jenis cuti tahunan berkuota.
+2. **`app/Filament/Resources/LeaveRequests/Pages/CreateLeaveRequest.php`**:
+   - Memperbarui validasi `mutateFormDataBeforeCreate()` agar mengizinkan Role `Intern` dan `Freelancer`.
+3. **`app/Filament/Resources/OvertimeRequests/OvertimeRequestResource.php` & `CreateOvertimeRequest.php`**:
+   - Menyelaraskan izin `canCreate()` dan `mutateFormDataBeforeCreate()` agar juga mendukung profil `Intern` dan `Freelancer`.
+4. **`database/seeders/RoleSeeder.php`**:
+   - Menambahkan permission `LeaveRequest` (`ViewAny:LeaveRequest`, `View:LeaveRequest`, `Create:LeaveRequest`, `Update:LeaveRequest`) dan `OvertimeRequest` ke Role `Intern` dan `Freelancer`.
+5. **`tests/Feature/InternAccessTest.php` & `tests/Feature/LeaveOvertimeTest.php`**:
+   - Memperbarui assertion `InternAccessTest` untuk memvalidasi bahwa `LeaveRequestResource::canCreate()` dan `OvertimeRequestResource::canCreate()` bernilai `true` bagi anak magang.
+   - Menambahkan automated test `test_intern_can_create_leave_request` dan `test_freelancer_can_create_and_approve_leave_request` untuk memastikan anak magang dan pekerja freelance dapat membuat pengajuan izin/sakit dan melewati alur approval secara sukses.
+
+### Hasil Pengujian & Verifikasi
+- ✅ `tests/Feature/InternAccessTest.php`: Passed (2 passed, 15 assertions).
+- ✅ `tests/Feature/LeaveOvertimeTest.php`: Passed (7 passed, 28 assertions).
+- ✅ `tests/Feature/AttendanceInternFreelancerTest.php`: Passed (10 passed, 21 assertions).
+- ✅ `vendor/bin/pint --dirty --format agent`: Formatted cleanly.
+

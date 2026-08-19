@@ -20,7 +20,7 @@ class CreateOvertimeRequest extends CreateRecord
 
         $workerProfile = $employee ?? $intern ?? $freelancer;
 
-        if (! $user?->hasAnyRole(['Employee', 'BOD']) || ! $workerProfile) {
+        if (! $user?->hasAnyRole(['Employee', 'Intern', 'Freelancer', 'BOD']) || ! $workerProfile) {
             throw ValidationException::withMessages([
                 'reason' => 'Akun pengguna Anda belum terhubung ke data Karyawan, Magang, atau Freelance.',
             ]);

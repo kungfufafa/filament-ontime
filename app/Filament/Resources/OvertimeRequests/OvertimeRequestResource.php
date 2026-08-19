@@ -63,8 +63,7 @@ class OvertimeRequestResource extends Resource
     {
         $user = auth()->user();
 
-        // Allow employees, interns, and freelancers with the Employee role
-        return $user?->hasAnyRole(['Employee', 'BOD']) ?? false;
+        return (bool) ($user?->employee || $user?->intern || $user?->freelancer || $user?->hasAnyRole(['Employee', 'Intern', 'Freelancer', 'BOD']));
     }
 
     public static function canEdit(Model $record): bool

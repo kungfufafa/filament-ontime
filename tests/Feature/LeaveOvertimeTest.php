@@ -2,12 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\LeaveRequests\LeaveRequestResource;
 use App\Models\ApprovalFlow;
 use App\Models\Approver;
 use App\Models\Attendance;
 use App\Models\Company;
 use App\Models\Division;
 use App\Models\Employee;
+use App\Models\Freelancer;
 use App\Models\JobLevel;
 use App\Models\JobTitle;
 use App\Models\LeaveRequest;
@@ -25,9 +27,12 @@ class LeaveOvertimeTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Role::create(['name' => 'Approver']);
-        Role::create(['name' => 'BOD']);
-        Role::create(['name' => 'Superadmin']);
+        Role::firstOrCreate(['name' => 'Approver']);
+        Role::firstOrCreate(['name' => 'BOD']);
+        Role::firstOrCreate(['name' => 'Superadmin']);
+        Role::firstOrCreate(['name' => 'Employee']);
+        Role::firstOrCreate(['name' => 'Intern']);
+        Role::firstOrCreate(['name' => 'Freelancer']);
     }
 
     private function createEmployee(Company $company): Employee
@@ -491,6 +496,80 @@ class LeaveOvertimeTest extends TestCase
         $this->assertEquals('approved', $leaveRequest->status);
         $this->assertDatabaseHas('attendances', [
             'employee_id' => $employee->id,
+            'status' => 'leave',
+        ]);
+    }
+
+    public function test_freelancer_can_create_and_approve_leave_request(): void
+    {
+        $company = Company::create(['name' => 'PT Freelance Test', 'code' => 'PTFL', 'is_active' => true]);
+        $division = Division::create(['company_id' => $company->id, 'name' => 'Design', 'code' => 'DSG', 'is_active' => true]);
+
+        $user = User::factory()->create();
+        $user->assignRole('Freelancer');
+
+        $freelancer = Freelancer::create([
+            'user_id' => $user->id,
+            'company_id' => $company->id,
+            'division_id' => $division->id,
+            'freelancer_number' => 'FL-TEST-001',
+            'full_name' => 'Freelancer Designer',
+            'email' => $user->email,
+            'phone' => '628999888777',
+            'start_date' => now(),
+            'end_date' => now()->addMonths(6),
+            'status' => 'active',
+        ]);
+
+        ApprovalFlow::create([
+            'company_id' => $company->id,
+            'request_type' => 'leave',
+            'step_number' => 1,
+            'step_order' => 1,
+            'name' => 'Supervisor Approval',
+            'approver_type' => 'role',
+            'approver_role' => 'Approver',
+        ]);
+
+        $this->actingAs($user);
+
+        $this->assertTrue(LeaveRequestResource::canCreate());
+
+        $leaveRequest = LeaveRequest::create([
+            'freelancer_id' => $freelancer->id,
+            'leave_type' => 'permission',
+            'start_date' => today(),
+            'end_date' => today(),
+            'days_count' => 1,
+            'reason' => 'Izin keperluan freelance',
+            'status' => 'pending',
+        ]);
+
+        $service = new ApprovalFlowService;
+        $service->generateSteps($leaveRequest, 'leave');
+
+        $this->assertDatabaseHas('leave_requests', [
+            'freelancer_id' => $freelancer->id,
+            'leave_type' => 'permission',
+            'reason' => 'Izin keperluan freelance',
+            'status' => 'pending',
+        ]);
+
+        $approverUser = User::factory()->create();
+        $approverUser->assignRole('Approver');
+        Approver::create([
+            'user_id' => $approverUser->id,
+            'company_id' => $company->id,
+            'division_id' => $division->id,
+            'level' => 1,
+        ]);
+
+        $service->approveStep($leaveRequest, $approverUser);
+        $leaveRequest = $leaveRequest->fresh();
+
+        $this->assertEquals('approved', $leaveRequest->status);
+        $this->assertDatabaseHas('attendances', [
+            'freelancer_id' => $freelancer->id,
             'status' => 'leave',
         ]);
     }
