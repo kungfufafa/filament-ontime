@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    'wag' => [
+        'enabled' => ! empty(env('WAG_URL')),
+        'url' => env('WAG_URL'),
+        'api_key' => env('WAG_API_KEY'),
+    ],
+
+    'google' => [
+        'maps_key' => env('GOOGLE_MAPS_API_KEY', ''),
+    ],
+
 ];
