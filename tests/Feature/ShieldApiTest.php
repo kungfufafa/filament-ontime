@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\ApprovalFlow;
 use App\Models\Company;
 use App\Models\Division;
 use App\Models\Employee;
@@ -73,16 +72,6 @@ class ShieldApiTest extends TestCase
             'join_date' => now()->toDateString(),
             'status' => 'permanent',
         ]);
-
-        ApprovalFlow::create([
-            'company_id' => $this->company->id,
-            'request_type' => 'resignation',
-            'step_number' => 1,
-            'step_order' => 1,
-            'name' => 'Persetujuan Superadmin Resign',
-            'approver_type' => 'role',
-            'approver_role' => 'Superadmin',
-        ]);
     }
 
     public function test_auth_me_returns_roles_and_shield_permissions(): void
@@ -105,7 +94,6 @@ class ShieldApiTest extends TestCase
 
         $permissions = $response->json('user.permissions');
         $this->assertContains('View:AbsenHariIni', $permissions);
-        $this->assertContains('ViewAny:LeaveRequest', $permissions);
     }
 
     public function test_superadmin_can_access_shield_roles_and_permissions_endpoints(): void
@@ -129,28 +117,6 @@ class ShieldApiTest extends TestCase
         $response->assertStatus(403);
     }
 
-    public function test_employee_can_submit_resignation_via_api(): void
-    {
-        Sanctum::actingAs($this->employeeUser);
-
-        $response = $this->postJson('/api/v1/resignations', [
-            'resignation_date' => now()->addDays(30)->toDateString(),
-            'last_working_day' => now()->addDays(60)->toDateString(),
-            'reason' => 'Ingin melanjutkan pendidikan',
-            'handover_notes' => 'Handover dokumen ke HR',
-        ]);
-
-        $response->assertStatus(201)
-            ->assertJsonPath('message', 'Pengajuan pengunduran diri berhasil dibuat.')
-            ->assertJsonPath('data.status', 'pending');
-
-        $resignationId = $response->json('data.id');
-
-        $getSingleResponse = $this->getJson("/api/v1/resignations/{$resignationId}");
-        $getSingleResponse->assertStatus(200)
-            ->assertJsonPath('data.reason', 'Ingin melanjutkan pendidikan');
-    }
-
     public function test_master_data_apis_access_control(): void
     {
         // Employee has no ViewAny:Company permission
@@ -164,14 +130,9 @@ class ShieldApiTest extends TestCase
         $this->getJson('/api/v1/master/employees')->assertStatus(200);
     }
 
-    public function test_kalender_cuti_and_laporan_absensi_apis(): void
+    public function test_laporan_absensi_api(): void
     {
         Sanctum::actingAs($this->employeeUser);
-
-        // Employee has View:KalenderCuti and View:LaporanAbsensi permissions assigned in RoleSeeder
-        $kalenderResponse = $this->getJson('/api/v1/kalender-cuti?month='.now()->month.'&year='.now()->year);
-        $kalenderResponse->assertStatus(200)
-            ->assertJsonStructure(['month', 'year', 'data']);
 
         $laporanResponse = $this->getJson('/api/v1/laporan-absensi');
         $laporanResponse->assertStatus(200)

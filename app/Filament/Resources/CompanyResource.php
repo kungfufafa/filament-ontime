@@ -232,8 +232,6 @@ class CompanyResource extends Resource
                         'face_match_threshold' => $record->policy?->face_match_threshold ?? 60,
                         'face_fail_action' => $record->policy?->face_fail_action ?? 'reject',
                         'geofence_radius_meters' => $record->policy?->geofence_radius_meters ?? 100,
-                        'annual_leave_quota' => $record->policy?->annual_leave_quota ?? 12,
-                        'default_approval_stages' => $record->policy?->default_approval_stages ?? 1,
                     ])
                     ->schema([
                         TextInput::make('late_tolerance_minutes')
@@ -274,7 +272,7 @@ class CompanyResource extends Resource
                             ->label('Tindakan Jika Wajah Tidak Cocok')
                             ->options([
                                 'reject' => 'Tolak Presensi Langsung',
-                                'approval' => 'Alihkan ke Approval Atasan (Pending)',
+                                'flag' => 'Tetap Catat tapi Tandai (Peringatan)',
                             ])
                             ->default('reject')
                             ->visible(fn (Get $get) => (bool) $get('require_face_recognition'))
@@ -286,18 +284,6 @@ class CompanyResource extends Resource
                             ->placeholder('Contoh: 100')
                             ->visible(fn (Get $get) => (bool) $get('require_gps'))
                             ->required(fn (Get $get) => (bool) $get('require_gps')),
-
-                        TextInput::make('annual_leave_quota')
-                            ->label('Kuota Cuti Tahunan (Hari)')
-                            ->numeric()
-                            ->required()
-                            ->default(12),
-
-                        TextInput::make('default_approval_stages')
-                            ->label('Jumlah Tahap Approval Default (Referensi)')
-                            ->numeric()
-                            ->required()
-                            ->default(1),
                     ])
                     ->action(function (Company $record, array $data): void {
                         $record->policy()->updateOrCreate(

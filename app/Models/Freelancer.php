@@ -62,14 +62,4 @@ class Freelancer extends Model
     {
         return $this->hasMany(Attendance::class);
     }
-
-    public function leaveRequests(): HasMany
-    {
-        return $this->hasMany(LeaveRequest::class);
-    }
-
-    public function overtimeRequests(): HasMany
-    {
-        return $this->hasMany(OvertimeRequest::class);
-    }
 }

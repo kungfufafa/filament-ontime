@@ -9,7 +9,6 @@ use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -86,20 +85,6 @@ class User extends Authenticatable implements FilamentUser
     public function freelancer(): HasOne
     {
         return $this->hasOne(Freelancer::class);
-    }
-
-    public function approvers(): HasMany
-    {
-        return $this->hasMany(Approver::class);
-    }
-
-    public function canTrackApprovalProgressFor(?Employee $employee = null): bool
-    {
-        if (! $employee) {
-            return false;
-        }
-
-        return $this->hasRole('Employee') && $this->employee?->is($employee);
     }
 
     public function canAccessPanel(Panel $panel): bool

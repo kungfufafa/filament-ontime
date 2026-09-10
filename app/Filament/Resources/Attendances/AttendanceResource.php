@@ -40,7 +40,7 @@ class AttendanceResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::ClipboardDocumentList;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Presensi & Pengajuan';
+    protected static string|UnitEnum|null $navigationGroup = 'Presensi';
 
     protected static ?int $navigationSort = 2;
 

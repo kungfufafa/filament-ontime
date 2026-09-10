@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\ApprovalFlow;
 use App\Models\Company;
 use App\Models\Division;
 use App\Models\Employee;
@@ -44,7 +43,7 @@ class DatabaseSeeder extends Seeder
         // 4. Seed Company Geofence Locations (CS, TOP, MSI, SMI, RISM)
         $this->call(CompanyLocationSeeder::class);
 
-        // 5. Setup Approval Flows & Policies for all Companies
+        // 5. Setup Policies for all Companies
         foreach (Company::with('policy')->get() as $comp) {
             if ($comp->policy) {
                 $comp->policy->update([
@@ -52,44 +51,9 @@ class DatabaseSeeder extends Seeder
                     'require_photo' => true,
                     'require_gps' => true,
                     'geofence_radius_meters' => 100,
-                    'annual_leave_quota' => 12,
                     'work_start_time' => '08:00:00',
                     'work_end_time' => '17:00:00',
                 ]);
-            }
-
-            if ($comp->approvalFlows()->count() === 0) {
-                foreach (['leave' => 'Cuti / Izin', 'overtime' => 'Lembur', 'correction' => 'Koreksi Absensi'] as $requestType => $label) {
-                    ApprovalFlow::create([
-                        'company_id' => $comp->id,
-                        'request_type' => $requestType,
-                        'step_number' => 1,
-                        'step_order' => 1,
-                        'name' => "Persetujuan Approver {$label}",
-                        'approver_type' => 'role',
-                        'approver_role' => 'Approver',
-                    ]);
-
-                    ApprovalFlow::create([
-                        'company_id' => $comp->id,
-                        'request_type' => $requestType,
-                        'step_number' => 2,
-                        'step_order' => 2,
-                        'name' => "Persetujuan BOD {$label}",
-                        'approver_type' => 'role',
-                        'approver_role' => 'BOD',
-                    ]);
-
-                    ApprovalFlow::create([
-                        'company_id' => $comp->id,
-                        'request_type' => $requestType,
-                        'step_number' => 3,
-                        'step_order' => 3,
-                        'name' => "Persetujuan Akhir Superadmin {$label}",
-                        'approver_type' => 'role',
-                        'approver_role' => 'Superadmin',
-                    ]);
-                }
             }
         }
 

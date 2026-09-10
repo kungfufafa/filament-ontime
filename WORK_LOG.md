@@ -1100,7 +1100,112 @@ Menambahkan komponen peta interaktif **OpenStreetMap (Leaflet)** ke form lokasi 
 - ✅ `vendor/bin/pint --format agent`: Formatted cleanly.
 - ✅ Verifikasi UI di Browser: Tampilan search bar dropdown pada tabel filter rapi, teks terlihat jelas, ikon pencarian tampil estetik, dan tema kembali ke Dark Mode murni tanpa efek glow biru.
 
+---
 
+## 🎯 FASE 28: Refokus Aplikasi Menjadi Sistem Absensi Murni (Pembersihan Fitur HRIS & Alur Approval)
+
+**Tanggal**: 2026-09-10
+
+### Latar Belakang & Tujuan
+Aplikasi OnTime difokuskan kembali secara eksklusif menjadi **Sistem Absensi Murni** (*pure attendance system*). Seluruh modul non-absensi/HRIS yang tidak esensial bagi pencatatan kehadiran karyawan, pekerja magang, dan pekerja lepas dihapus secara menyeluruh:
+1. **Alur Persetujuan (Approval Flow)**: Menghapus engine approval bertingkat, penugasan approver, inbox persetujuan (`ApprovalSaya`), notifikasi approval, dan tabel alur approval.
+2. **Pengunduran Diri (Resignation)**: Menghapus formulir pengajuan resignasi, cetak dokumen resignasi, dan endpoint API resignasi.
+3. **Cuti & Izin (Leave Requests & Calendar)**: Menghapus pengajuan cuti, pemotongan kuota cuti tahunan, dan halaman kalender cuti tim (`KalenderCuti`).
+4. **Pengajuan Lembur (Overtime Requests)**: Menghapus pengajuan lembur dan alur validasi jam lembur.
+5. **Koreksi Absensi Bertingkat**: Menghapus formulir dan workflow pengajuan koreksi mandiri berjenjang; digantikan dengan kemampuan Admin/Superadmin untuk langsung melakukan koreksi/override data presensi pada `AttendanceResource`.
+6. **Presensi Out-of-Bounds**: Presensi selfie di luar radius geofence langsung dicatat sebagai absensi sah (`on_time` atau `late`) dengan atribut penanda `is_out_of_bounds = true` (ditampilkan sebagai warning badge pada panel admin) tanpa memerlukan alur approval pending.
+
+### Perubahan Database & Migrasi
+- **Migration Baru**: `2026_09_10_000001_drop_hris_and_approval_tables.php`
+- **Tabel yang Dihapus dari Database**:
+  - `approval_request_steps`
+  - `approval_flows`
+  - `approvers`
+  - `attendance_corrections`
+  - `leave_requests`
+  - `overtime_requests`
+  - `resignations`
+
+### File & Direktori yang Dihapus
+1. **Model & Service**:
+   - `app/Models/ApprovalFlow.php`
+   - `app/Models/ApprovalRequestStep.php`
+   - `app/Models/Approver.php`
+   - `app/Models/AttendanceCorrection.php`
+   - `app/Models/LeaveRequest.php`
+   - `app/Models/OvertimeRequest.php`
+   - `app/Models/Resignation.php`
+   - `app/Services/ApprovalFlowService.php`
+2. **Filament Resources & Pages**:
+   - `app/Filament/Resources/ApprovalFlows/`
+   - `app/Filament/Resources/ApproverResource.php` & sub-halaman
+   - `app/Filament/Resources/AttendanceCorrections/`
+   - `app/Filament/Resources/LeaveRequests/`
+   - `app/Filament/Resources/OvertimeRequests/`
+   - `app/Filament/Resources/ResignationResource.php` & sub-halaman
+   - `app/Filament/Pages/ApprovalSaya.php`
+   - `app/Filament/Pages/KalenderCuti.php`
+   - `app/Filament/Widgets/ApproverPendingWidget.php`
+3. **Blade Views**:
+   - `resources/views/filament/pages/approval-saya.blade.php`
+   - `resources/views/filament/pages/kalender-cuti.blade.php`
+   - `resources/views/filament/modals/print-resignation.blade.php`
+4. **API Controllers, Requests & Resources**:
+   - `app/Http/Controllers/Api/V1/ApprovalApiController.php`
+   - `app/Http/Controllers/Api/V1/AttendanceCorrectionApiController.php`
+   - `app/Http/Controllers/Api/V1/LeaveRequestApiController.php`
+   - `app/Http/Controllers/Api/V1/OvertimeRequestApiController.php`
+   - `app/Http/Controllers/Api/V1/ResignationApiController.php`
+   - Form Requests: `ProcessApprovalRequest`, `StoreAttendanceCorrectionRequest`, `StoreLeaveRequest`, `StoreOvertimeRequest`, `UpdateAttendanceCorrectionRequest`, `UpdateLeaveRequest`, `UpdateOvertimeRequest`.
+   - API Resources: `AttendanceCorrectionResource`, `LeaveRequestResource`, `OvertimeRequestResource`, `ResignationResource`.
+5. **Obsolete Test Files**:
+   - `tests/Feature/ApprovalFlowTest.php`
+   - `tests/Feature/ApproverResourceTest.php`
+   - `tests/Feature/AttendanceGeofenceApprovalTest.php`
+   - `tests/Feature/KalenderCutiTest.php`
+   - `tests/Feature/LeaveOvertimeTest.php`
+   - `tests/Feature/ResignationTest.php`
+
+### Modifikasi & Refactoring Komponen
+1. **Model & Entity**:
+   - `app/Models/Attendance.php`: Menghapus relasi `corrections()` dan `approvalSteps()`.
+   - `app/Models/User.php`: Menghapus relasi `approvers()`, `leaveRequests()`, `overtimeRequests()`, `resignations()`.
+   - `app/Models/Company.php`: Menghapus relasi `approvers()`, `approvalFlows()`, `leaveRequests()`, `overtimeRequests()`, `resignations()`.
+   - `app/Models/Division.php`, `Employee.php`, `Intern.php`, `Freelancer.php`: Menghapus seluruh relasi ke tabel HRIS yang telah dihapus.
+2. **Filament Navigation & Pages**:
+   - Navigasi grup `'Presensi & Pengajuan'` disederhanakan menjadi `'Presensi'` murni (berisi: *Absen Hari Ini*, *Data Absensi*, *Laporan Absensi*).
+   - Seluruh grup `'Persetujuan (Inbox)'` dihapus dari panel navigasi.
+   - `AttendanceResource`: Menghadirkan fitur edit/override manual oleh Admin untuk koreksi kehadiran secara langsung.
+   - `LaporanAbsensi`: Menghapus kartu metrik cuti & lembur; fokus pada total hadir, terlambat, izin, dan rekap presensi.
+   - `EmployeeStatsWidget` & `SuperadminOverviewWidget`: Membersihkan widget dari penghitungan pengajuan cuti, lembur, dan pending approval.
+3. **API & Routing**:
+   - `routes/api.php`: Menghapus rute `/approvals`, `/leave-requests`, `/overtime-requests`, `/attendance-corrections`, dan `/resignations`.
+   - `AttendanceApiController`: Penyesuaian clock-in mobile agar out-of-bounds langsung tersimpan dengan status presensi valid dan flag `is_out_of_bounds = true`, serta membersihkan eager-loading `approvalSteps`.
+   - `MasterDataApiController` & `ReportAndCalendarApiController`: Membersihkan endpoint data approver dan kalender cuti.
+4. **Seeders & Tests**:
+   - `DatabaseSeeder.php`: Menghapus seeding approval flows dan approvers.
+   - `tests/Feature/ApiEndpointsExtensionTest.php`, `AttendanceTest.php`, `MasterDataApiTest.php`, `ShieldApiTest.php`, `FilterSearchabilityTest.php`, `InternAccessTest.php`, `ShieldAccessTest.php`: Diperbarui dan diselaraskan dengan arsitektur sistem absensi murni.
+
+### Hasil Pengujian & Verifikasi
+- ✅ **Database Migration**: Berhasil mengeksekusi penghapusan seluruh tabel HRIS dan approval.
+- ✅ **PHPUnit Automated Tests**:
+  - `tests/Feature/AttendanceTest.php`: Passed.
+  - `tests/Feature/ApiTest.php`: Passed.
+  - `tests/Feature/MasterDataApiTest.php`: Passed.
+  - `tests/Feature/ShieldApiTest.php`: Passed.
+  - `tests/Feature/FilterSearchabilityTest.php`: Passed.
+  - `tests/Feature/ApiEndpointsExtensionTest.php`: Passed.
+  - `tests/Feature/InternAccessTest.php`: Passed.
+  - `tests/Feature/ShieldAccessTest.php`: Passed.
+  - `tests/Feature/AttendanceInternFreelancerTest.php`: Passed.
+  - `tests/Feature/AttendancePhotoTest.php`: Passed.
+  - `tests/Feature/CompanyPolicyTest.php`: Passed.
+  - `tests/Feature/FaceRecognitionTest.php`: Passed.
+  - `tests/Feature/MultiLocationGeofenceTest.php`: Passed.
+  - `tests/Feature/MasterFaceApiTest.php`: Passed.
+  - `tests/Feature/WebhookReceiverTest.php`: Passed.
+  - Total: **43+ Feature Tests Passed (170+ Assertions, 0 Failures)**.
+- ✅ **Laravel Pint**: `vendor/bin/pint --dirty --format agent` lulus tanpa ada style error yang tersisa.
 
 
 

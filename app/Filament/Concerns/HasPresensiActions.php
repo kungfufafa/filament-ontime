@@ -5,7 +5,6 @@ namespace App\Filament\Concerns;
 use App\Enums\AttendanceStatus;
 use App\Models\Attendance;
 use App\Models\CompanyPolicy;
-use App\Services\ApprovalFlowService;
 use App\Services\FaceRecognitionService;
 use App\Services\GeofenceService;
 use Filament\Notifications\Notification;
@@ -145,11 +144,10 @@ trait HasPresensiActions
 
         $shiftStartThreshold = now()->setTimeFromTimeString($workStartTimeStr)->addMinutes($lateToleranceMinutes);
 
-        $requiresApproval = $isOutOfBounds || $faceFailedAndRequiresApproval;
-        $status = $requiresApproval ? AttendanceStatus::PendingApproval : AttendanceStatus::OnTime;
+        $status = AttendanceStatus::OnTime;
         $lateMinutes = 0;
 
-        if (! $requiresApproval && $now->greaterThan($shiftStartThreshold)) {
+        if ($now->greaterThan($shiftStartThreshold)) {
             $status = AttendanceStatus::Late;
             $lateMinutes = (int) $now->diffInMinutes(now()->setTimeFromTimeString($workStartTimeStr));
         }
@@ -171,24 +169,18 @@ trait HasPresensiActions
             'face_verification_notes' => $faceVerificationNotes,
         ]);
 
-        if ($requiresApproval) {
-            app(ApprovalFlowService::class)->generateSteps($attendance, 'geofence');
+        $statusNote = $status === AttendanceStatus::Late ? "Terlambat {$lateMinutes} menit" : 'Tepat Waktu';
+        $bodyNote = "Waktu Check In: {$now->format('H:i:s')} WIB ({$statusNote})";
 
-            $reasonNote = $faceFailedAndRequiresApproval ? 'Verifikasi wajah tidak cocok. ' : '';
-            $reasonNote .= $isOutOfBounds ? 'Lokasi berada di luar geofence.' : '';
-
-            Notification::make()
-                ->title('Check In Dikirim (Menunggu Persetujuan)')
-                ->body($reasonNote.' Presensi berhasil dicatat dan sedang menunggu persetujuan atasan.')
-                ->warning()
-                ->send();
-        } else {
-            Notification::make()
-                ->title('Check In Berhasil!')
-                ->body("Waktu Check In: {$now->format('H:i:s')} WIB (".($status === AttendanceStatus::Late ? "Terlambat {$lateMinutes} menit" : 'Tepat Waktu').')')
-                ->success()
-                ->send();
+        if ($isOutOfBounds) {
+            $bodyNote .= ' - Catatan: Lokasi berada di luar radius kantor.';
         }
+
+        Notification::make()
+            ->title('Check In Berhasil!')
+            ->body($bodyNote)
+            ->color($isOutOfBounds ? 'warning' : 'success')
+            ->send();
     }
 
     public function processCheckOut(?string $photoPath = null, ?float $lat = null, ?float $lng = null): void
@@ -288,41 +280,29 @@ trait HasPresensiActions
             }
         }
 
-        $requiresApproval = $isOutOfBounds || $faceFailedAndRequiresApproval;
         $now = now();
         $updateData = [
             'check_out' => $now,
             'check_out_photo' => $photoPath,
             'check_out_lat' => $lat,
             'check_out_lng' => $lng,
+            'is_out_of_bounds' => $isOutOfBounds || $attendance->is_out_of_bounds,
             'is_face_verified' => $isFaceVerified ?? $attendance->is_face_verified,
             'face_match_score' => $faceMatchScore ?? $attendance->face_match_score,
             'face_verification_notes' => $faceVerificationNotes ?? $attendance->face_verification_notes,
         ];
 
-        if ($requiresApproval) {
-            $updateData['is_out_of_bounds'] = $isOutOfBounds || $attendance->is_out_of_bounds;
-            $updateData['status'] = AttendanceStatus::PendingApproval;
-        }
-
         $attendance->update($updateData);
 
-        if ($requiresApproval) {
-            if ($attendance->approvalSteps()->count() === 0) {
-                app(ApprovalFlowService::class)->generateSteps($attendance, 'geofence');
-            }
-
-            Notification::make()
-                ->title('Check Out Dikirim (Menunggu Persetujuan)')
-                ->body('Presensi Check Out sedang menunggu persetujuan atasan.')
-                ->warning()
-                ->send();
-        } else {
-            Notification::make()
-                ->title('Check Out Berhasil!')
-                ->body("Waktu Check Out: {$now->format('H:i:s')} WIB")
-                ->success()
-                ->send();
+        $bodyNote = "Waktu Check Out: {$now->format('H:i:s')} WIB";
+        if ($isOutOfBounds) {
+            $bodyNote .= ' - Catatan: Lokasi berada di luar radius kantor.';
         }
+
+        Notification::make()
+            ->title('Check Out Berhasil!')
+            ->body($bodyNote)
+            ->color($isOutOfBounds ? 'warning' : 'success')
+            ->send();
     }
 }

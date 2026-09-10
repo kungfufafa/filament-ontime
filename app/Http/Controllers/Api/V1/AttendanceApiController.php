@@ -8,7 +8,6 @@ use App\Http\Requests\Api\V1\CheckInRequest;
 use App\Http\Requests\Api\V1\CheckOutRequest;
 use App\Http\Resources\Api\V1\AttendanceResource;
 use App\Models\Attendance;
-use App\Services\ApprovalFlowService;
 use App\Services\FaceRecognitionService;
 use App\Services\FileNamingService;
 use App\Services\GeofenceService;
@@ -112,11 +111,10 @@ class AttendanceApiController extends Controller
         $toleranceMinutes = $policy?->late_tolerance_minutes ?? 15;
         $lateThreshold = (clone $workStart)->addMinutes($toleranceMinutes);
 
-        $requiresApproval = $isOutOfBounds || $faceFailedAndRequiresApproval;
-        $status = $requiresApproval ? AttendanceStatus::PendingApproval : AttendanceStatus::OnTime;
+        $status = AttendanceStatus::OnTime;
         $lateMinutes = 0;
 
-        if (! $requiresApproval && $now->greaterThan($lateThreshold)) {
+        if ($now->greaterThan($lateThreshold)) {
             $status = AttendanceStatus::Late;
             $lateMinutes = (int) $workStart->diffInMinutes($now);
         }
@@ -142,13 +140,9 @@ class AttendanceApiController extends Controller
             ]
         );
 
-        if ($requiresApproval) {
-            app(ApprovalFlowService::class)->generateSteps($attendance, 'geofence');
-        }
-
         return response()->json([
-            'message' => $requiresApproval
-                ? 'Check in berhasil dicatat dan sedang menunggu persetujuan atasan.'
+            'message' => $isOutOfBounds
+                ? 'Check in berhasil dicatat (di luar radius kantor).'
                 : 'Check in berhasil',
             'attendance' => new AttendanceResource($attendance),
         ]);
@@ -227,20 +221,13 @@ class AttendanceApiController extends Controller
 
         if ($isOutOfBounds) {
             $updateData['is_out_of_bounds'] = true;
-            $updateData['status'] = AttendanceStatus::PendingApproval;
         }
 
         $attendance->update($updateData);
 
-        if ($isOutOfBounds) {
-            if ($attendance->approvalSteps()->count() === 0) {
-                app(ApprovalFlowService::class)->generateSteps($attendance, 'geofence');
-            }
-        }
-
         return response()->json([
             'message' => $isOutOfBounds
-                ? 'Check out berhasil dicatat dan sedang menunggu persetujuan atasan karena di luar geofence.'
+                ? 'Check out berhasil dicatat (di luar radius kantor).'
                 : 'Check out berhasil',
             'attendance' => new AttendanceResource($attendance),
         ]);
@@ -282,7 +269,7 @@ class AttendanceApiController extends Controller
     public function show(int $id, Request $request): JsonResponse
     {
         $user = $request->user();
-        $attendance = Attendance::with(['employee', 'intern', 'freelancer', 'approvalSteps'])->findOrFail($id);
+        $attendance = Attendance::with(['employee', 'intern', 'freelancer'])->findOrFail($id);
 
         if (! $user->can('ViewAny:Attendance') && ! $this->belongsToWorker($attendance, $user)) {
             return response()->json(['message' => 'Unauthorized access.'], 403);

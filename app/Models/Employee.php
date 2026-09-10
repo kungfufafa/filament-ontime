@@ -66,21 +66,6 @@ class Employee extends Model
         return $this->hasMany(Attendance::class);
     }
 
-    public function leaveRequests(): HasMany
-    {
-        return $this->hasMany(LeaveRequest::class);
-    }
-
-    public function overtimeRequests(): HasMany
-    {
-        return $this->hasMany(OvertimeRequest::class);
-    }
-
-    public function attendanceCorrections(): HasMany
-    {
-        return $this->hasMany(AttendanceCorrection::class);
-    }
-
     public function mentoredInterns(): HasMany
     {
         return $this->hasMany(Intern::class, 'mentor_id');
@@ -89,10 +74,5 @@ class Employee extends Model
     public function supervisedFreelancers(): HasMany
     {
         return $this->hasMany(Freelancer::class, 'supervisor_id');
-    }
-
-    public function resignations(): HasMany
-    {
-        return $this->hasMany(Resignation::class);
     }
 }

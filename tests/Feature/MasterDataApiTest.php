@@ -2,8 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\ApprovalFlow;
-use App\Models\Approver;
 use App\Models\Attendance;
 use App\Models\Company;
 use App\Models\CompanyLocation;
@@ -43,10 +41,6 @@ class MasterDataApiTest extends TestCase
 
     protected Holiday $holiday;
 
-    protected ApprovalFlow $flow;
-
-    protected Approver $approver;
-
     protected Attendance $attendance;
 
     protected function setUp(): void
@@ -56,20 +50,17 @@ class MasterDataApiTest extends TestCase
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
         $this->seed(RoleSeeder::class);
 
-        $superadminRole = Role::findByName('Superadmin');
-        $approverRole = Role::findByName('Approver');
+        $superadminRole = Role::firstOrCreate(['name' => 'Superadmin']);
 
-        $this->adminUser = User::create([
-            'name' => 'Admin Test',
-            'email' => 'admin.master@ontime.com',
+        $this->adminUser = User::factory()->create([
+            'email' => 'masteradmin@ontime.com',
             'password' => bcrypt('password'),
         ]);
         $this->adminUser->assignRole($superadminRole);
-        $this->adminUser->assignRole($approverRole);
 
         $this->company = Company::create([
             'name' => 'PT Utama Test',
-            'code' => 'PTUT',
+            'code' => 'UTAMA',
             'is_active' => true,
         ]);
 
@@ -78,14 +69,13 @@ class MasterDataApiTest extends TestCase
             'name' => 'Kantor Pusat',
             'latitude' => -6.2000000,
             'longitude' => 106.8166667,
-            'radius_meters' => 100,
+            'radius_meters' => 150,
             'is_active' => true,
         ]);
 
         $this->policy = CompanyPolicy::create([
             'company_id' => $this->company->id,
             'late_tolerance_minutes' => 15,
-            'annual_leave_quota' => 12,
             'work_start_time' => '08:00:00',
             'work_end_time' => '17:00:00',
         ]);
@@ -93,12 +83,19 @@ class MasterDataApiTest extends TestCase
         $this->division = Division::create([
             'company_id' => $this->company->id,
             'name' => 'Divisi Teknologi',
-            'code' => 'DIVTEK',
+            'code' => 'TECH',
             'is_active' => true,
         ]);
 
-        $this->jobLevel = JobLevel::firstOrCreate(['name' => 'Senior Staff', 'level_order' => 2]);
-        $this->jobTitle = JobTitle::firstOrCreate(['name' => 'Backend Engineer', 'division_id' => $this->division->id]);
+        $this->jobLevel = JobLevel::firstOrCreate([
+            'name' => 'Lead',
+            'level_order' => 5,
+        ]);
+
+        $this->jobTitle = JobTitle::firstOrCreate([
+            'name' => 'Lead Architect',
+            'division_id' => $this->division->id,
+        ]);
 
         $this->employee = Employee::create([
             'user_id' => $this->adminUser->id,
@@ -106,7 +103,7 @@ class MasterDataApiTest extends TestCase
             'division_id' => $this->division->id,
             'job_level_id' => $this->jobLevel->id,
             'job_title_id' => $this->jobTitle->id,
-            'nip' => 'EMP.MST.001',
+            'nip' => 'ADM.001',
             'full_name' => 'Admin Master Test',
             'join_date' => now()->toDateString(),
             'status' => 'permanent',
@@ -116,23 +113,6 @@ class MasterDataApiTest extends TestCase
             'name' => 'Hari Kemerdekaan',
             'date' => '2026-08-17',
             'is_national' => true,
-        ]);
-
-        $this->flow = ApprovalFlow::create([
-            'company_id' => $this->company->id,
-            'request_type' => 'leave',
-            'step_number' => 1,
-            'step_order' => 1,
-            'name' => 'Atasan Direct',
-            'approver_type' => 'role',
-            'approver_role' => 'Approver',
-        ]);
-
-        $this->approver = Approver::create([
-            'user_id' => $this->adminUser->id,
-            'company_id' => $this->company->id,
-            'division_id' => $this->division->id,
-            'level' => 1,
         ]);
 
         $this->attendance = Attendance::create([
@@ -156,8 +136,6 @@ class MasterDataApiTest extends TestCase
         $this->getJson('/api/v1/master/job-levels')->assertStatus(200)->assertJsonStructure(['data']);
         $this->getJson('/api/v1/master/employees')->assertStatus(200)->assertJsonStructure(['data']);
         $this->getJson('/api/v1/master/holidays')->assertStatus(200)->assertJsonStructure(['data']);
-        $this->getJson('/api/v1/master/approval-flows')->assertStatus(200)->assertJsonStructure(['data']);
-        $this->getJson('/api/v1/master/approvers')->assertStatus(200)->assertJsonStructure(['data']);
         $this->getJson('/api/v1/master/users')->assertStatus(200)->assertJsonStructure(['data']);
         $this->getJson('/api/v1/attendances')->assertStatus(200)->assertJsonStructure(['data']);
     }

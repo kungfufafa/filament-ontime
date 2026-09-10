@@ -72,11 +72,6 @@ class Company extends Model
         return $this->hasOne(CompanyPolicy::class);
     }
 
-    public function approvalFlows(): HasMany
-    {
-        return $this->hasMany(ApprovalFlow::class);
-    }
-
     public function holidays(): HasMany
     {
         return $this->hasMany(Holiday::class);

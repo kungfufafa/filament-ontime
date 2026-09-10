@@ -3,17 +3,13 @@
 namespace Tests\Feature;
 
 use App\Enums\AttendanceStatus;
-use App\Models\ApprovalFlow;
-use App\Models\Approver;
 use App\Models\Attendance;
-use App\Models\AttendanceCorrection;
 use App\Models\Company;
 use App\Models\Division;
 use App\Models\Employee;
 use App\Models\JobLevel;
 use App\Models\JobTitle;
 use App\Models\User;
-use App\Services\ApprovalFlowService;
 use App\Services\GeofenceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
@@ -106,125 +102,5 @@ class AttendanceTest extends TestCase
         $this->assertTrue(GeofenceService::isWithinGeofence($officeLat, $officeLng, $insideLat, $insideLng, $radius));
         $this->assertFalse(GeofenceService::isWithinGeofence($officeLat, $officeLng, $outsideLat, $outsideLng, $radius));
         $this->assertGreaterThan($radius, $distanceOutside);
-    }
-
-    public function test_multi_step_approval_flow_progression_and_rejection(): void
-    {
-        $company = Company::create(['name' => 'PT Multi Flow', 'code' => 'PTMF', 'is_active' => true]);
-        $employee = $this->createEmployee($company);
-
-        // Define 2-step approval flow for company
-        ApprovalFlow::create([
-            'company_id' => $company->id,
-            'request_type' => 'correction',
-            'step_number' => 1,
-            'step_order' => 1,
-            'name' => 'Direct Manager Review',
-            'approver_type' => 'role',
-            'approver_role' => 'Approver',
-        ]);
-
-        ApprovalFlow::create([
-            'company_id' => $company->id,
-            'request_type' => 'correction',
-            'step_number' => 2,
-            'step_order' => 2,
-            'name' => 'BOD Review',
-            'approver_type' => 'role',
-            'approver_role' => 'BOD',
-        ]);
-
-        ApprovalFlow::create([
-            'company_id' => $company->id,
-            'request_type' => 'correction',
-            'step_number' => 3,
-            'step_order' => 3,
-            'name' => 'HR Manager Final Approval',
-            'approver_type' => 'role',
-            'approver_role' => 'Superadmin',
-        ]);
-
-        // Approver 1: mapped to division
-        $user1 = User::factory()->create();
-        $user1->assignRole('Approver');
-        Approver::create([
-            'user_id' => $user1->id,
-            'company_id' => $company->id,
-            'division_id' => $employee->division_id,
-            'level' => 1,
-        ]);
-
-        // BOD: mapped to company level
-        $user2 = User::factory()->create();
-        $user2->assignRole('BOD');
-        Approver::create([
-            'user_id' => $user2->id,
-            'company_id' => $company->id,
-            'division_id' => null,
-            'level' => 2,
-        ]);
-
-        $user3 = User::factory()->create();
-        $user3->assignRole('Superadmin');
-
-        // Create correction request
-        $correction = AttendanceCorrection::create([
-            'employee_id' => $employee->id,
-            'date' => today(),
-            'corrected_check_in' => now()->setTime(8, 0, 0),
-            'corrected_check_out' => now()->setTime(17, 0, 0),
-            'reason' => 'Network error during check in',
-            'status' => 'pending',
-        ]);
-
-        $service = new ApprovalFlowService;
-        $service->generateSteps($correction, 'correction');
-
-        $this->assertEquals(1, $correction->fresh()->current_step);
-        $this->assertEquals('pending', $correction->fresh()->status);
-        $this->assertTrue($service->isUserAuthorizedToApprove($correction, $user1));
-
-        // Approver 1 approves Step 1
-        $service->approveStep($correction, $user1);
-
-        $correction = $correction->fresh();
-        $this->assertEquals(2, $correction->current_step); // Advanced to Step 2
-        $this->assertEquals('pending', $correction->status); // Status is STILL pending
-        $this->assertDatabaseMissing('attendances', ['employee_id' => $employee->id]); // Attendance NOT updated yet!
-
-        // BOD approves Step 2
-        $this->assertFalse($service->isUserAuthorizedToApprove($correction, $user1));
-        $this->assertTrue($service->isUserAuthorizedToApprove($correction, $user2));
-        $service->approveStep($correction, $user2);
-
-        $correction = $correction->fresh();
-        $this->assertEquals(3, $correction->current_step);
-        $this->assertFalse($service->isUserAuthorizedToApprove($correction, $user2));
-        $this->assertTrue($service->isUserAuthorizedToApprove($correction, $user3));
-        $service->approveStep($correction, $user3);
-
-        $correction = $correction->fresh();
-        $this->assertEquals('approved', $correction->status); // Status is NOW approved
-        $this->assertDatabaseHas('attendances', [
-            'employee_id' => $employee->id,
-            'is_corrected' => 1,
-        ]); // Attendance IS now updated!
-
-        // Test Rejection Scenario
-        $correction2 = AttendanceCorrection::create([
-            'employee_id' => $employee->id,
-            'date' => today()->addDay(),
-            'corrected_check_in' => now()->addDay()->setTime(8, 0, 0),
-            'reason' => 'Invalid request test',
-            'status' => 'pending',
-        ]);
-        $service->generateSteps($correction2, 'correction');
-
-        // Approver 1 rejects Step 1
-        $service->rejectStep($correction2, $user1, 'Data tidak valid');
-        $correction2 = $correction2->fresh();
-
-        $this->assertEquals('rejected', $correction2->status);
-        $this->assertEquals('Data tidak valid', $correction2->rejection_reason);
     }
 }

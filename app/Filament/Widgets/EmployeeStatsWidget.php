@@ -3,11 +3,8 @@
 namespace App\Filament\Widgets;
 
 use App\Filament\Pages\AbsenHariIni;
-use App\Filament\Resources\LeaveRequests\LeaveRequestResource;
-use App\Filament\Resources\OvertimeRequests\OvertimeRequestResource;
 use App\Models\Attendance;
-use App\Models\LeaveRequest;
-use App\Models\OvertimeRequest;
+use Carbon\Carbon;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
@@ -34,49 +31,47 @@ class EmployeeStatsWidget extends BaseWidget
             ->whereMonth('date', $currentMonth)
             ->whereYear('date', $currentYear)
             ->selectRaw("
-                SUM(CASE WHEN status IN ('on_time', 'present') THEN 1 ELSE 0 END) as present_days,
-                SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) as late_days
+                SUM(CASE WHEN status IN ('on_time', 'present') THEN 1 ELSE 0 END) as on_time_days,
+                SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) as late_days,
+                SUM(late_minutes) as total_late_minutes
             ")
             ->first();
 
-        $presentDays = (int) ($attendanceStats?->present_days ?? 0);
+        $onTimeDays = (int) ($attendanceStats?->on_time_days ?? 0);
         $lateDays = (int) ($attendanceStats?->late_days ?? 0);
+        $totalPresent = $onTimeDays + $lateDays;
+        $totalLateMinutes = (int) ($attendanceStats?->total_late_minutes ?? 0);
 
-        $maxQuota = $employee->company?->policy?->annual_leave_quota ?? 12;
-        $usedLeaveDays = (int) LeaveRequest::where('employee_id', $employee->id)
-            ->where('leave_type', 'annual_leave')
-            ->where('status', 'approved')
-            ->whereYear('start_date', $currentYear)
-            ->sum('days_count');
+        $todayAttendance = Attendance::where('employee_id', $employee->id)
+            ->whereDate('date', today())
+            ->first();
 
-        $remainingLeave = max(0, $maxQuota - $usedLeaveDays);
-
-        $overtimeMinutes = (int) OvertimeRequest::where('employee_id', $employee->id)
-            ->where('status', 'approved')
-            ->whereMonth('date', $currentMonth)
-            ->whereYear('date', $currentYear)
-            ->sum('duration_minutes');
-
-        $overtimeHours = round($overtimeMinutes / 60, 1);
+        $todayStatusLabel = 'Belum Absen';
+        $todayColor = 'gray';
+        if ($todayAttendance) {
+            $checkInTime = $todayAttendance->check_in ? Carbon::parse($todayAttendance->check_in)->format('H:i') : '—';
+            $todayStatusLabel = "Check In: {$checkInTime}";
+            $todayColor = $todayAttendance->status?->getColor() ?? 'success';
+        }
 
         return [
-            Stat::make('Kehadiran Bulan Ini', "{$presentDays} Hari")
-                ->description("Telat: {$lateDays} hari bulan ini")
+            Stat::make('Total Kehadiran Bulan Ini', "{$totalPresent} Hari")
+                ->description("Tepat waktu: {$onTimeDays} hari")
                 ->color('success')
                 ->icon('heroicon-o-check-circle')
                 ->url(AbsenHariIni::getUrl()),
 
-            Stat::make('Kuota Cuti Tahunan', "Sisa {$remainingLeave} Hari")
-                ->description("Terpakai: {$usedLeaveDays} dari {$maxQuota} hari")
-                ->color($remainingLeave > 2 ? 'primary' : 'warning')
-                ->icon('heroicon-o-calendar')
-                ->url(LeaveRequestResource::getUrl('index')),
-
-            Stat::make('Lembur Bulan Ini', "{$overtimeHours} Jam")
-                ->description('Total durasi lembur disetujui')
-                ->color('info')
+            Stat::make('Keterlambatan Bulan Ini', "{$lateDays} Hari")
+                ->description("Total akumulasi: {$totalLateMinutes} menit")
+                ->color($lateDays > 0 ? 'warning' : 'success')
                 ->icon('heroicon-o-clock')
-                ->url(OvertimeRequestResource::getUrl('index')),
+                ->url(AbsenHariIni::getUrl()),
+
+            Stat::make('Presensi Hari Ini', $todayStatusLabel)
+                ->description($todayAttendance ? ($todayAttendance->check_out ? 'Sudah Check Out' : 'Sedang Bekerja') : 'Klik untuk presensi')
+                ->color($todayColor)
+                ->icon('heroicon-o-camera')
+                ->url(AbsenHariIni::getUrl()),
         ];
     }
 }

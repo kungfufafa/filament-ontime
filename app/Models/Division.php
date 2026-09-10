@@ -105,11 +105,6 @@ class Division extends Model
         return $this->hasMany(Employee::class);
     }
 
-    public function approvers(): HasMany
-    {
-        return $this->hasMany(Approver::class);
-    }
-
     public function jobTitles(): HasMany
     {
         return $this->hasMany(JobTitle::class);

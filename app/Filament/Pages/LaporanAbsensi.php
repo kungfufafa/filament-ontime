@@ -4,7 +4,6 @@ namespace App\Filament\Pages;
 
 use App\Enums\AttendanceStatus;
 use App\Exports\AttendanceReportExport;
-use App\Models\Approver;
 use App\Models\Attendance;
 use App\Models\Company;
 use App\Models\CompanyPolicy;
@@ -46,7 +45,7 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-document-chart-bar';
 
-    protected static string|UnitEnum|null $navigationGroup = 'Presensi & Pengajuan';
+    protected static string|UnitEnum|null $navigationGroup = 'Presensi';
 
     protected static ?int $navigationSort = 3;
 
@@ -67,22 +66,10 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
     {
         $user = auth()->user();
         $isSuperadmin = $user?->hasRole('Superadmin');
-        $isApprover = $user?->hasAnyRole(['Approver', 'BOD']);
-
-        $allowedCompanyIds = [];
-        $allowedDivisionIds = [];
-
-        if ($user && ! $isSuperadmin && $isApprover) {
-            $allowedDivisionIds = Approver::where('user_id', $user->id)
-                ->whereNotNull('division_id')
-                ->pluck('division_id')
-                ->toArray();
-
-            $allowedCompanyIds = Approver::where('user_id', $user->id)
-                ->whereNull('division_id')
-                ->pluck('company_id')
-                ->toArray();
-        }
+        $isBOD = $user?->hasRole('BOD');
+        $worker = $user?->employee ?? $user?->intern ?? $user?->freelancer;
+        $workerCompanyId = $worker?->company_id;
+        $workerDivisionId = $worker?->division_id;
 
         return $schema
             ->statePath('filterData')
@@ -113,13 +100,10 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
 
                             Select::make('company_id')
                                 ->label('Badan Usaha')
-                                ->options(function () use ($isSuperadmin, $isApprover, $allowedCompanyIds, $allowedDivisionIds) {
+                                ->options(function () use ($isSuperadmin, $isBOD, $workerCompanyId) {
                                     $query = Company::query()->where('is_active', true);
-                                    if (! $isSuperadmin && $isApprover) {
-                                        $query->where(function ($q) use ($allowedCompanyIds, $allowedDivisionIds) {
-                                            $q->whereIn('id', $allowedCompanyIds)
-                                                ->orWhereHas('divisions', fn ($d) => $d->whereIn('id', $allowedDivisionIds));
-                                        });
+                                    if (! $isSuperadmin && ! $isBOD && $workerCompanyId) {
+                                        $query->where('id', $workerCompanyId);
                                     }
 
                                     return $query->pluck('name', 'id');
@@ -130,7 +114,7 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
 
                             Select::make('division_id')
                                 ->label('Divisi')
-                                ->options(function (Get $get) use ($isSuperadmin, $allowedDivisionIds, $isApprover) {
+                                ->options(function (Get $get) use ($isSuperadmin, $isBOD, $workerDivisionId) {
                                     $companyId = $get('company_id');
                                     $query = Division::query()->where('is_active', true);
 
@@ -138,8 +122,8 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
                                         $query->where('company_id', $companyId);
                                     }
 
-                                    if (! $isSuperadmin && $isApprover && ! empty($allowedDivisionIds)) {
-                                        $query->whereIn('id', $allowedDivisionIds);
+                                    if (! $isSuperadmin && ! $isBOD && $workerDivisionId) {
+                                        $query->where('id', $workerDivisionId);
                                     }
 
                                     return $query->pluck('name', 'id');
@@ -171,57 +155,13 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
 
         // Scope Enforcement
         if ($user && ! $isSuperadmin) {
-            $isApprover = $user->hasAnyRole(['Approver', 'BOD']);
+            $isBOD = $user->hasRole('BOD');
             $employee = $user->employee;
             $intern = $user->intern;
             $freelancer = $user->freelancer;
 
-            if ($isApprover) {
-                $divisionIds = Approver::where('user_id', $user->id)
-                    ->whereNotNull('division_id')
-                    ->pluck('division_id')
-                    ->toArray();
-
-                $companyIds = Approver::where('user_id', $user->id)
-                    ->whereNull('division_id')
-                    ->pluck('company_id')
-                    ->toArray();
-
-                $query->where(function ($q) use ($divisionIds, $companyIds) {
-                    $q->whereHas('employee', function ($sub) use ($divisionIds, $companyIds) {
-                        $sub->where(function ($s) use ($divisionIds, $companyIds) {
-                            if (! empty($divisionIds)) {
-                                $s->whereIn('division_id', $divisionIds);
-                            }
-                            if (! empty($companyIds)) {
-                                $s->orWhereIn('company_id', $companyIds);
-                            }
-                            if (empty($divisionIds) && empty($companyIds)) {
-                                $s->whereRaw('1 = 0');
-                            }
-                        });
-                    })
-                        ->orWhereHas('intern', function ($sub) use ($divisionIds, $companyIds) {
-                            $sub->where(function ($s) use ($divisionIds, $companyIds) {
-                                if (! empty($divisionIds)) {
-                                    $s->whereIn('division_id', $divisionIds);
-                                }
-                                if (! empty($companyIds)) {
-                                    $s->orWhereIn('company_id', $companyIds);
-                                }
-                            });
-                        })
-                        ->orWhereHas('freelancer', function ($sub) use ($divisionIds, $companyIds) {
-                            $sub->where(function ($s) use ($divisionIds, $companyIds) {
-                                if (! empty($divisionIds)) {
-                                    $s->whereIn('division_id', $divisionIds);
-                                }
-                                if (! empty($companyIds)) {
-                                    $s->orWhereIn('company_id', $companyIds);
-                                }
-                            });
-                        });
-                });
+            if ($isBOD) {
+                // BOD can view report across all companies/divisions
             } elseif ($employee) {
                 $query->where('employee_id', $employee->id);
             } elseif ($intern) {
@@ -418,7 +358,7 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
                     ->requiresConfirmation()
                     ->modalHeading('Hapus Data Absensi User')
                     ->modalDescription('Apakah Anda yakin ingin menghapus data absensi ini? Setelah dihapus, status absensi user pada tanggal ini akan di-reset.')
-                    ->visible(fn (): bool => (bool) auth()->user()?->hasAnyRole(['Superadmin', 'Approver', 'BOD'])),
+                    ->visible(fn (): bool => (bool) auth()->user()?->hasAnyRole(['Superadmin', 'BOD'])),
             ])
             ->bulkActions([
                 BulkActionGroup::make([
@@ -427,7 +367,7 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
                         ->requiresConfirmation()
                         ->modalHeading('Hapus Absensi User Terpilih')
                         ->modalDescription('Apakah Anda yakin ingin menghapus semua data absensi terpilih?')
-                        ->visible(fn (): bool => (bool) auth()->user()?->hasAnyRole(['Superadmin', 'Approver', 'BOD'])),
+                        ->visible(fn (): bool => (bool) auth()->user()?->hasAnyRole(['Superadmin', 'BOD'])),
                 ]),
             ]);
     }

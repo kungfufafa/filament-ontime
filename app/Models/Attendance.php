@@ -3,13 +3,10 @@
 namespace App\Models;
 
 use App\Enums\AttendanceStatus;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Attendance extends Model
 {
@@ -76,53 +73,9 @@ class Attendance extends Model
         return $this->belongsTo(Freelancer::class);
     }
 
-    public function corrections(): HasMany
-    {
-        return $this->hasMany(AttendanceCorrection::class);
-    }
-
-    public function approvalSteps(): MorphMany
-    {
-        return $this->morphMany(ApprovalRequestStep::class, 'approvable');
-    }
-
     public function getWorkerProfile(): mixed
     {
         return $this->employee ?? $this->intern ?? $this->freelancer;
-    }
-
-    public function applyGeofenceApproval(): void
-    {
-        $profile = $this->getWorkerProfile();
-        $policy = $profile?->company?->policy;
-
-        $status = AttendanceStatus::OnTime;
-        $lateMinutes = 0;
-
-        if ($this->check_in) {
-            $workStartStr = $policy?->work_start_time ?? '08:00:00';
-            $toleranceMinutes = $policy?->late_tolerance_minutes ?? 15;
-            $checkInTime = Carbon::parse($this->check_in);
-            $shiftStartThreshold = (clone $checkInTime)->setTimeFromTimeString($workStartStr)->addMinutes($toleranceMinutes);
-
-            if ($checkInTime->greaterThan($shiftStartThreshold)) {
-                $status = AttendanceStatus::Late;
-                $lateMinutes = (int) $checkInTime->diffInMinutes((clone $checkInTime)->setTimeFromTimeString($workStartStr));
-            }
-        }
-
-        $this->update([
-            'status' => $status,
-            'late_minutes' => $lateMinutes,
-        ]);
-    }
-
-    public function applyGeofenceRejection(?string $reason = null): void
-    {
-        $this->update([
-            'status' => AttendanceStatus::Rejected,
-            'rejection_reason' => $reason,
-        ]);
     }
 
     // ── Scopes ───────────────────────────────────────────────────────────────

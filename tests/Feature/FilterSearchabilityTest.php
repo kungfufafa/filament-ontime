@@ -2,8 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Filament\Pages\KalenderCuti;
-use App\Filament\Resources\ApproverResource;
 use App\Filament\Resources\Attendances\AttendanceResource;
 use App\Filament\Resources\CompanyLocationResource;
 use App\Filament\Resources\DivisionResource;
@@ -12,14 +10,12 @@ use App\Filament\Resources\EmployeeResource\Pages\ListEmployees;
 use App\Filament\Resources\FreelanceResource;
 use App\Filament\Resources\InternResource;
 use App\Filament\Resources\JobTitleResource;
-use App\Filament\Resources\ResignationResource;
 use App\Models\Company;
 use App\Models\Division;
 use App\Models\Employee;
 use App\Models\JobLevel;
 use App\Models\JobTitle;
 use App\Models\User;
-use Filament\Schemas\Schema;
 use Filament\Tables\Table;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -137,12 +133,6 @@ class FilterSearchabilityTest extends TestCase
 
     public function test_other_resources_filters_searchability(): void
     {
-        // ApproverResource
-        $approverTable = ApproverResource::table($this->makeTable());
-        $aFilters = collect($approverTable->getFilters())->keyBy(fn ($f) => $f->getName());
-        $this->assertNotNull($aFilters->get('company_id'));
-        $this->assertNotNull($aFilters->get('division_id'));
-
         // CompanyLocationResource
         $locTable = CompanyLocationResource::table($this->makeTable());
         $locFilters = collect($locTable->getFilters())->keyBy(fn ($f) => $f->getName());
@@ -157,51 +147,5 @@ class FilterSearchabilityTest extends TestCase
         $jtTable = JobTitleResource::table($this->makeTable());
         $jtFilters = collect($jtTable->getFilters())->keyBy(fn ($f) => $f->getName());
         $this->assertNotNull($jtFilters->get('division_id'));
-
-        // ResignationResource
-        $resTable = ResignationResource::table($this->makeTable());
-        $resFilters = collect($resTable->getFilters())->keyBy(fn ($f) => $f->getName());
-        $this->assertNotNull($resFilters->get('employee_id'));
-        $this->assertNotNull($resFilters->get('status'));
-        $this->assertFalse($resFilters->get('status')->getFormField()->isSearchable());
-    }
-
-    public function test_kalender_cuti_filters_searchability(): void
-    {
-        $page = new KalenderCuti;
-        $schema = KalenderCuti::form(new Schema($page));
-        $components = $schema->getComponents();
-
-        // Get Section -> Grid -> Selects
-        $grid = $components[0]->getChildComponents()[0];
-        $fields = collect($grid->getChildComponents())->keyBy(fn ($c) => $c->getName());
-
-        $monthSelect = $fields->get('selectedMonth');
-        $yearSelect = $fields->get('selectedYear');
-        $companySelect = $fields->get('selectedCompanyId');
-
-        $this->assertNotNull($monthSelect);
-        $this->assertNotNull($yearSelect);
-        $this->assertNotNull($companySelect);
-
-        // Month has 12 options (> 5) -> must be searchable
-        $this->assertTrue($monthSelect->isSearchable());
-
-        // Year has 3 options (<= 5) -> must NOT be searchable
-        $this->assertFalse($yearSelect->isSearchable());
-
-        // Initially 0 companies in DB -> not searchable
-        $this->assertFalse($companySelect->isSearchable());
-
-        // Create 6 active companies (> 5)
-        for ($i = 1; $i <= 6; $i++) {
-            Company::create(['name' => "PT Cal {$i}", 'code' => "CAL{$i}", 'is_active' => true]);
-        }
-
-        // Re-evaluate form schema
-        $freshSchema = KalenderCuti::form(new Schema($page));
-        $freshGrid = $freshSchema->getComponents()[0]->getChildComponents()[0];
-        $freshFields = collect($freshGrid->getChildComponents())->keyBy(fn ($c) => $c->getName());
-        $this->assertTrue($freshFields->get('selectedCompanyId')->isSearchable());
     }
 }

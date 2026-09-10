@@ -3,8 +3,6 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Models\ApprovalFlow;
-use App\Models\Approver;
 use App\Models\Company;
 use App\Models\CompanyLocation;
 use App\Models\CompanyPolicy;
@@ -201,48 +199,6 @@ class MasterDataApiController extends Controller
         $holiday = Holiday::findOrFail($id);
 
         return response()->json(['data' => $holiday]);
-    }
-
-    public function approvalFlows(Request $request): JsonResponse
-    {
-        $query = ApprovalFlow::with('company');
-
-        if ($request->has('company_id')) {
-            $query->where('company_id', $request->input('company_id'));
-        }
-        if ($request->has('request_type')) {
-            $query->where('request_type', $request->input('request_type'));
-        }
-
-        return response()->json(['data' => $query->orderBy('company_id')->orderBy('request_type')->orderBy('step_order')->get()]);
-    }
-
-    public function showApprovalFlow(int $id): JsonResponse
-    {
-        $flow = ApprovalFlow::with('company')->findOrFail($id);
-
-        return response()->json(['data' => $flow]);
-    }
-
-    public function approvers(Request $request): JsonResponse
-    {
-        $query = Approver::with(['user', 'company', 'division']);
-
-        if ($request->has('company_id')) {
-            $query->where('company_id', $request->input('company_id'));
-        }
-        if ($request->has('division_id')) {
-            $query->where('division_id', $request->input('division_id'));
-        }
-
-        return response()->json(['data' => $query->get()]);
-    }
-
-    public function showApprover(int $id): JsonResponse
-    {
-        $approver = Approver::with(['user', 'company', 'division'])->findOrFail($id);
-
-        return response()->json(['data' => $approver]);
     }
 
     public function users(Request $request): JsonResponse
