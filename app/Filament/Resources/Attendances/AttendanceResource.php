@@ -190,6 +190,7 @@ class AttendanceResource extends Resource
                         'intern' => 'Magang',
                         'freelancer' => 'Freelance',
                     ])
+                    ->searchable(fn (SelectFilter $f): bool => count($f->getOptions()) > 5)
                     ->query(function (Builder $query, array $data): Builder {
                         return match ($data['value'] ?? null) {
                             'employee' => $query->whereNotNull('employee_id'),
@@ -201,11 +202,14 @@ class AttendanceResource extends Resource
 
                 SelectFilter::make('status')
                     ->label('Status')
-                    ->options(AttendanceStatus::class),
+                    ->options(AttendanceStatus::class)
+                    ->searchable(fn (SelectFilter $f): bool => count($f->getOptions()) > 5),
 
                 SelectFilter::make('company')
                     ->label('Perusahaan')
                     ->options(fn () => Company::pluck('name', 'id'))
+                    ->searchable(fn (): bool => Company::count() > 5)
+                    ->preload()
                     ->query(function (Builder $query, array $data): Builder {
                         $companyId = $data['value'] ?? null;
                         if (! $companyId) {

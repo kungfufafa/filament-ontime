@@ -242,15 +242,21 @@ class FreelanceResource extends Resource
             ->filters([
                 SelectFilter::make('company_id')
                     ->label('Badan Usaha')
-                    ->relationship('company', 'name'),
+                    ->relationship('company', 'name')
+                    ->searchable(fn (): bool => Company::count() > 5)
+                    ->preload(),
 
                 SelectFilter::make('division_id')
                     ->label('Divisi')
-                    ->relationship('division', 'name'),
+                    ->relationship('division', 'name')
+                    ->searchable(fn (): bool => Division::count() > 5)
+                    ->preload(),
 
                 SelectFilter::make('supervisor_id')
                     ->label('PIC / Supervisor (Karyawan)')
-                    ->relationship('supervisor', 'full_name'),
+                    ->relationship('supervisor', 'full_name')
+                    ->searchable(fn (): bool => Employee::count() > 5)
+                    ->preload(),
 
                 SelectFilter::make('status')
                     ->label('Status')
@@ -259,7 +265,8 @@ class FreelanceResource extends Resource
                         'completed' => 'Selesai Kontrak',
                         'extended' => 'Diperpanjang',
                         'terminated' => 'Berhenti',
-                    ]),
+                    ])
+                    ->searchable(fn (SelectFilter $f): bool => count($f->getOptions()) > 5),
             ])
             ->actions([
                 Action::make('createUser')

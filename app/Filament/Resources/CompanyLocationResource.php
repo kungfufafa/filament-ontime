@@ -134,7 +134,9 @@ class CompanyLocationResource extends Resource
             ->filters([
                 SelectFilter::make('company_id')
                     ->label('Badan Usaha')
-                    ->relationship('company', 'name'),
+                    ->relationship('company', 'name')
+                    ->searchable(fn (): bool => Company::count() > 5)
+                    ->preload(),
 
                 TernaryFilter::make('is_active')
                     ->label('Status Aktif'),

@@ -159,13 +159,20 @@ class ResignationResource extends Resource
                     ->formatStateUsing(fn ($record) => $record->status === 'approved' ? 'Selesai' : "Tahap {$record->current_step}"),
             ])
             ->filters([
+                SelectFilter::make('employee_id')
+                    ->label('Karyawan')
+                    ->relationship('employee', 'full_name')
+                    ->searchable(fn (): bool => Employee::count() > 5)
+                    ->preload(),
+
                 SelectFilter::make('status')
                     ->label('Status')
                     ->options([
                         'pending' => 'Pending Approval',
                         'approved' => 'Disetujui (Resigned)',
                         'rejected' => 'Ditolak',
-                    ]),
+                    ])
+                    ->searchable(fn (SelectFilter $f): bool => count($f->getOptions()) > 5),
             ])
             ->actions([
                 Action::make('viewSteps')

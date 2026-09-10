@@ -1,19 +1,10 @@
-<?php
-    use Filament\Support\Enums\IconSize;
-    use Filament\Support\Enums\Size;
-    use Filament\Support\View\ComponentAttributeBag as FilamentComponentAttributeBag;
-    use Filament\Support\View\Components\BadgeComponent;
-    use Filament\Support\View\Components\IconButtonComponent;
-    use Illuminate\View\ComponentAttributeBag;
-?>
-
 <?php $attributes ??= new \Illuminate\View\ComponentAttributeBag;
 
 $__newAttributes = [];
 $__propNames = \Illuminate\View\ComponentAttributeBag::extractPropNames(([
     'badge' => null,
     'badgeColor' => 'primary',
-    'badgeSize' => Size::ExtraSmall,
+    'badgeSize' => null,
     'color' => 'primary',
     'disabled' => false,
     'form' => null,
@@ -25,7 +16,7 @@ $__propNames = \Illuminate\View\ComponentAttributeBag::extractPropNames(([
     'keyBindings' => null,
     'label' => null,
     'loadingIndicator' => true,
-    'size' => Size::Medium,
+    'size' => null,
     'spaMode' => null,
     'tag' => 'button',
     'target' => null,
@@ -49,7 +40,7 @@ unset($__newAttributes);
 foreach (array_filter(([
     'badge' => null,
     'badgeColor' => 'primary',
-    'badgeSize' => Size::ExtraSmall,
+    'badgeSize' => null,
     'color' => 'primary',
     'disabled' => false,
     'form' => null,
@@ -61,7 +52,7 @@ foreach (array_filter(([
     'keyBindings' => null,
     'label' => null,
     'loadingIndicator' => true,
-    'size' => Size::Medium,
+    'size' => null,
     'spaMode' => null,
     'tag' => 'button',
     'target' => null,
@@ -80,6 +71,18 @@ foreach ($attributes->all() as $__key => $__value) {
 unset($__defined_vars, $__key, $__value); ?>
 
 <?php
+    use Filament\Support\Enums\IconSize;
+    use Filament\Support\Enums\Size;
+    use Filament\Support\View\ComponentAttributeBag as FilamentComponentAttributeBag;
+    use Filament\Support\View\Components\BadgeComponent;
+    use Filament\Support\View\Components\IconButtonComponent;
+    use Illuminate\Contracts\Support\Htmlable;
+    use Illuminate\View\ComponentAttributeBag;
+    use Illuminate\View\ComponentSlot;
+
+    $badgeSize ??= Size::ExtraSmall;
+    $size ??= Size::Medium;
+
     if (! $size instanceof Size) {
         $size = filled($size) ? (Size::tryFrom($size) ?? $size) : null;
     }
@@ -125,14 +128,14 @@ unset($__defined_vars, $__key, $__value); ?>
         x-tooltip="{
             content: <?php echo \Illuminate\Support\Js::from($tooltip)->toHtml() ?>,
             theme: $store.theme,
-            allowHTML: <?php echo \Illuminate\Support\Js::from($tooltip instanceof \Illuminate\Contracts\Support\Htmlable)->toHtml() ?>,
+            allowHTML: <?php echo \Illuminate\Support\Js::from($tooltip instanceof Htmlable)->toHtml() ?>,
         }"
     <?php endif; ?>
     <?php echo e($attributes
             ->merge([
                 'aria-disabled' => $disabled ? 'true' : null,
                 // Security: These attributes are rendered without escaping, so the `aria-label` must be escaped here, otherwise an `Htmlable` label could break out of the attribute. `doubleEncode: false` preserves entities that Blade has already escaped in a string label.
-                'aria-label' => filled($label) ? e(trim(strip_tags($label instanceof \Illuminate\Contracts\Support\Htmlable ? $label->toHtml() : $label)), doubleEncode: false) : null,
+                'aria-label' => filled($label) ? e(trim(strip_tags($label instanceof Htmlable ? $label->toHtml() : $label)), doubleEncode: false) : null,
                 'disabled' => $disabled && blank($tooltip),
                 'form' => $formId,
                 'tabindex' => (($tag === 'a') && $disabled && $hasTooltip) ? '0' : null,
@@ -157,14 +160,14 @@ unset($__defined_vars, $__key, $__value); ?>
             ->color(IconButtonComponent::class, $color)); ?>
 
 >
-    <?php echo e(\Filament\Support\generate_icon_html($icon, $iconAlias, (new \Filament\Support\View\ComponentAttributeBag([
+    <?php echo e(\Filament\Support\generate_icon_html($icon, $iconAlias, (new Filament\Support\View\ComponentAttributeBag([
             'wire:loading.remove.delay.' . $loadingDelay => $hasLoadingIndicator,
             'wire:target' => $hasLoadingIndicator ? $loadingIndicatorTarget : false,
         ])), size: $iconSize)); ?>
 
 
     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($hasLoadingIndicator): ?>
-        <?php echo e(\Filament\Support\generate_loading_indicator_html((new \Filament\Support\View\ComponentAttributeBag([
+        <?php echo e(\Filament\Support\generate_loading_indicator_html((new Filament\Support\View\ComponentAttributeBag([
                 'wire:loading.delay.' . $loadingDelay => '',
                 'wire:target' => $loadingIndicatorTarget,
             ])), size: $iconSize)); ?>
@@ -173,7 +176,7 @@ unset($__defined_vars, $__key, $__value); ?>
 
     <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(filled($badge)): ?>
         <div class="fi-icon-btn-badge-ctn">
-            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($badge instanceof \Illuminate\View\ComponentSlot): ?>
+            <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($badge instanceof ComponentSlot): ?>
                 <?php echo e($badge); ?>
 
             <?php else: ?>

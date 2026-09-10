@@ -159,11 +159,15 @@ class ApproverResource extends Resource
             ->filters([
                 SelectFilter::make('company_id')
                     ->label('Badan Usaha')
-                    ->relationship('company', 'name'),
+                    ->relationship('company', 'name')
+                    ->searchable(fn (): bool => Company::count() > 5)
+                    ->preload(),
 
                 SelectFilter::make('division_id')
                     ->label('Divisi')
-                    ->relationship('division', 'name'),
+                    ->relationship('division', 'name')
+                    ->searchable(fn (): bool => Division::count() > 5)
+                    ->preload(),
             ])
             ->actions([
                 EditAction::make(),

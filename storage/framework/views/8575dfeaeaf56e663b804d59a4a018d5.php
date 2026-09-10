@@ -1,11 +1,17 @@
 <?php
+    use Filament\Support\Facades\FilamentView;
+    use Filament\Support\Icons\Heroicon;
+    use Filament\View\PanelsIconAlias;
+    use Filament\View\PanelsRenderHook;
+    use Illuminate\Support\Arr;
+
     $debounce = filament()->getGlobalSearchDebounce();
     $keyBindings = filament()->getGlobalSearchKeyBindings();
     $suffix = filament()->getGlobalSearchFieldSuffix();
 ?>
 
 <div class="fi-global-search-ctn">
-    <?php echo e(\Filament\Support\Facades\FilamentView::renderHook(\Filament\View\PanelsRenderHook::GLOBAL_SEARCH_START)); ?>
+    <?php echo e(FilamentView::renderHook(PanelsRenderHook::GLOBAL_SEARCH_START)); ?>
 
 
     <div
@@ -20,14 +26,14 @@
 
             <?php if (isset($component)) { $__componentOriginal505efd9768415fdb4543e8c564dad437 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal505efd9768415fdb4543e8c564dad437 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.input.wrapper','data' => ['prefixIcon' => \Filament\Support\Icons\Heroicon::MagnifyingGlass,'prefixIconAlias' => \Filament\View\PanelsIconAlias::GLOBAL_SEARCH_FIELD,'inlinePrefix' => true,'suffix' => $suffix,'inlineSuffix' => true,'wire:target' => 'search']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.input.wrapper','data' => ['prefixIcon' => Heroicon::MagnifyingGlass,'prefixIconAlias' => PanelsIconAlias::GLOBAL_SEARCH_FIELD,'inlinePrefix' => true,'suffix' => $suffix,'inlineSuffix' => true,'wire:target' => 'search']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('filament::input.wrapper'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['prefix-icon' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(\Filament\Support\Icons\Heroicon::MagnifyingGlass),'prefix-icon-alias' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(\Filament\View\PanelsIconAlias::GLOBAL_SEARCH_FIELD),'inline-prefix' => true,'suffix' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($suffix),'inline-suffix' => true,'wire:target' => 'search']); ?>
+<?php $component->withAttributes(['prefix-icon' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(Heroicon::MagnifyingGlass),'prefix-icon-alias' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(PanelsIconAlias::GLOBAL_SEARCH_FIELD),'inline-prefix' => true,'suffix' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($suffix),'inline-suffix' => true,'wire:target' => 'search']); ?>
 <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
 
                 <input
@@ -129,7 +135,7 @@
                                                             <div
                                                                 class="fi-global-search-result-detail"
                                                             >
-                                                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($isAssoc ??= \Illuminate\Support\Arr::isAssoc($result->details)): ?>
+                                                                <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($isAssoc ??= Arr::isAssoc($result->details)): ?>
                                                                     <dt
                                                                         class="fi-global-search-result-detail-label"
                                                                     >
@@ -170,7 +176,7 @@
         <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
     </div>
 
-    <?php echo e(\Filament\Support\Facades\FilamentView::renderHook(\Filament\View\PanelsRenderHook::GLOBAL_SEARCH_END)); ?>
+    <?php echo e(FilamentView::renderHook(PanelsRenderHook::GLOBAL_SEARCH_END)); ?>
 
 </div>
 <?php /**PATH C:\Users\AHTAR\filament-ontime\vendor\filament\filament\resources\views/livewire/global-search.blade.php ENDPATH**/ ?>

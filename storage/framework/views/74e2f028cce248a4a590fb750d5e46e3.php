@@ -7,7 +7,10 @@
 
     $notificationsLabel = __('filament-panels::layout.actions.open_database_notifications.label');
 
-    if (filled($unreadNotificationsCount)) {
+    // `filled(0)` is true in Laravel, so compare against > 0 like Filament core.
+    $hasUnreadNotifications = ((int) ($unreadNotificationsCount ?? 0)) > 0;
+
+    if ($hasUnreadNotifications) {
         $notificationsLabel .= ': ' . $unreadNotificationsCount;
     }
 ?>
@@ -26,7 +29,7 @@
         )); ?>
 
 
-    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(filled($unreadNotificationsCount)): ?>
+    <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($hasUnreadNotifications): ?>
         <span
             class="absolute -top-1 -right-1 inline-flex min-w-4 items-center justify-center rounded-full bg-primary-500 px-1 text-[0.625rem] font-semibold leading-none text-white"
             aria-hidden="true"

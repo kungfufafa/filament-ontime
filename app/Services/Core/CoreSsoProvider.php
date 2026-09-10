@@ -16,7 +16,7 @@ class CoreSsoProvider extends AbstractProvider implements ProviderInterface
      */
     protected function getAuthUrl($state)
     {
-        return $this->buildAuthUrlFromBase(config('core.base_url') . '/oauth/authorize', $state);
+        return $this->buildAuthUrlFromBase(config('core.base_url').'/oauth/authorize', $state);
     }
 
     /**
@@ -26,7 +26,7 @@ class CoreSsoProvider extends AbstractProvider implements ProviderInterface
      */
     protected function getTokenUrl()
     {
-        return config('core.base_url') . '/oauth/token';
+        return config('core.base_url').'/oauth/token';
     }
 
     /**
@@ -37,9 +37,9 @@ class CoreSsoProvider extends AbstractProvider implements ProviderInterface
      */
     protected function getUserByToken($token)
     {
-        $response = $this->getHttpClient()->get(config('core.base_url') . '/api/oauth/me', [
+        $response = $this->getHttpClient()->get(config('core.base_url').'/api/oauth/me', [
             'headers' => [
-                'Authorization' => 'Bearer ' . $token,
+                'Authorization' => 'Bearer '.$token,
             ],
         ]);
 
@@ -49,8 +49,7 @@ class CoreSsoProvider extends AbstractProvider implements ProviderInterface
     /**
      * Map the raw user array to a Socialite User instance.
      *
-     * @param  array  $user
-     * @return \Laravel\Socialite\Two\User
+     * @return User
      */
     protected function mapUserToObject(array $user)
     {

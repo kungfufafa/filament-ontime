@@ -1,33 +1,24 @@
-<?php
-    use Filament\Support\Enums\Alignment;
-    use Filament\Support\Enums\SlideOverPosition;
-    use Filament\Support\Enums\Width;
-    use Filament\Support\View\ComponentAttributeBag as FilamentComponentAttributeBag;
-    use Filament\Support\View\Components\ModalComponent\IconComponent;
-    use Illuminate\Contracts\Support\Htmlable;
-?>
-
 <?php $attributes ??= new \Illuminate\View\ComponentAttributeBag;
 
 $__newAttributes = [];
 $__propNames = \Illuminate\View\ComponentAttributeBag::extractPropNames(([
     'alert' => false,
-    'alignment' => Alignment::Start,
+    'alignment' => null,
     'ariaLabelledby' => null,
-    'autofocus' => \Filament\Support\View\Components\ModalComponent::$isAutofocused,
+    'autofocus' => null,
     'clickThrough' => false,
-    'closeButton' => \Filament\Support\View\Components\ModalComponent::$hasCloseButton,
-    'closeByClickingAway' => \Filament\Support\View\Components\ModalComponent::$isClosedByClickingAway,
-    'closeByEscaping' => \Filament\Support\View\Components\ModalComponent::$isClosedByEscaping,
+    'closeButton' => null,
+    'closeByClickingAway' => null,
+    'closeByEscaping' => null,
     'closeEventName' => 'close-modal',
     'closeQuietlyEventName' => 'close-modal-quietly',
     'description' => null,
-    'focusTrapReturnsFocus' => true,
+    'restoresFocus' => true,
     'extraModalWindowAttributeBag' => null,
     'extraModalOverlayAttributeBag' => null,
     'footer' => null,
     'footerActions' => [],
-    'footerActionsAlignment' => Alignment::Start,
+    'footerActionsAlignment' => null,
     'header' => null,
     'heading' => null,
     'icon' => null,
@@ -36,7 +27,7 @@ $__propNames = \Illuminate\View\ComponentAttributeBag::extractPropNames(([
     'id' => null,
     'openEventName' => 'open-modal',
     'slideOver' => false,
-    'slideOverPosition' => SlideOverPosition::End,
+    'slideOverPosition' => null,
     'stickyFooter' => false,
     'stickyHeader' => false,
     'teleport' => null,
@@ -60,22 +51,22 @@ unset($__newAttributes);
 
 foreach (array_filter(([
     'alert' => false,
-    'alignment' => Alignment::Start,
+    'alignment' => null,
     'ariaLabelledby' => null,
-    'autofocus' => \Filament\Support\View\Components\ModalComponent::$isAutofocused,
+    'autofocus' => null,
     'clickThrough' => false,
-    'closeButton' => \Filament\Support\View\Components\ModalComponent::$hasCloseButton,
-    'closeByClickingAway' => \Filament\Support\View\Components\ModalComponent::$isClosedByClickingAway,
-    'closeByEscaping' => \Filament\Support\View\Components\ModalComponent::$isClosedByEscaping,
+    'closeButton' => null,
+    'closeByClickingAway' => null,
+    'closeByEscaping' => null,
     'closeEventName' => 'close-modal',
     'closeQuietlyEventName' => 'close-modal-quietly',
     'description' => null,
-    'focusTrapReturnsFocus' => true,
+    'restoresFocus' => true,
     'extraModalWindowAttributeBag' => null,
     'extraModalOverlayAttributeBag' => null,
     'footer' => null,
     'footerActions' => [],
-    'footerActionsAlignment' => Alignment::Start,
+    'footerActionsAlignment' => null,
     'header' => null,
     'heading' => null,
     'icon' => null,
@@ -84,7 +75,7 @@ foreach (array_filter(([
     'id' => null,
     'openEventName' => 'open-modal',
     'slideOver' => false,
-    'slideOverPosition' => SlideOverPosition::End,
+    'slideOverPosition' => null,
     'stickyFooter' => false,
     'stickyHeader' => false,
     'teleport' => null,
@@ -104,11 +95,31 @@ foreach ($attributes->all() as $__key => $__value) {
 unset($__defined_vars, $__key, $__value); ?>
 
 <?php
+    use Filament\Support\Enums\Alignment;
+    use Filament\Support\Enums\IconSize;
+    use Filament\Support\Enums\SlideOverPosition;
+    use Filament\Support\Enums\Width;
+    use Filament\Support\Icons\Heroicon;
+    use Filament\Support\View\ComponentAttributeBag as FilamentComponentAttributeBag;
+    use Filament\Support\View\Components\ModalComponent;
+    use Filament\Support\View\Components\ModalComponent\IconComponent;
+    use Filament\Support\View\SupportIconAlias;
+    use Illuminate\Contracts\Support\Htmlable;
+    use Illuminate\Support\Js;
+
+    $alignment ??= Alignment::Start;
+    $autofocus ??= ModalComponent::$isAutofocused;
+    $closeButton ??= ModalComponent::$hasCloseButton;
+    $closeByClickingAway ??= ModalComponent::$isClosedByClickingAway;
+    $closeByEscaping ??= ModalComponent::$isClosedByEscaping;
+    $footerActionsAlignment ??= Alignment::Start;
+    $slideOverPosition ??= SlideOverPosition::End;
+
     $hasContent = ! \Filament\Support\is_slot_empty($slot);
     $hasDescription = filled($description);
     $hasFooter = (! \Filament\Support\is_slot_empty($footer)) || (is_array($footerActions) && count($footerActions)) || (! is_array($footerActions) && (! \Filament\Support\is_slot_empty($footerActions)));
     $hasHeading = filled($heading);
-    $iconHtml = ($icon || $iconAlias) ? \Filament\Support\generate_icon_html($icon, $iconAlias, size: \Filament\Support\Enums\IconSize::Large) : null;
+    $iconHtml = ($icon || $iconAlias) ? \Filament\Support\generate_icon_html($icon, $iconAlias, size: IconSize::Large) : null;
     $hasIcon = $iconHtml !== null;
 
     $headingId = filled($id) ? "{$id}.heading" : null;
@@ -129,7 +140,7 @@ unset($__defined_vars, $__key, $__value); ?>
         $width = Width::tryFrom($width) ?? $width;
     }
 
-    $closeEventHandler = filled($id) ? '$dispatch(' . \Illuminate\Support\Js::from($closeEventName) . ', { id: ' . \Illuminate\Support\Js::from($id) . ' })' : 'close()';
+    $closeEventHandler = filled($id) ? '$dispatch(' . Js::from($closeEventName) . ', { id: ' . Js::from($id) . ' })' : 'close()';
 
     $wireSubmitHandler = $attributes->get('wire:submit.prevent');
     $attributes = $attributes->except(['wire:submit.prevent']);
@@ -188,6 +199,7 @@ unset($__defined_vars, $__key, $__value); ?>
     x-data="filamentModal({
                 id: <?php echo \Illuminate\Support\Js::from($id)->toHtml() ?>,
                 isScrollLocked: <?php echo \Illuminate\Support\Js::from(! $isClickThrough)->toHtml() ?>,
+                shouldRestoreFocus: <?php echo \Illuminate\Support\Js::from($restoresFocus && (! $isClickThrough))->toHtml() ?>,
             })"
     <?php if($id): ?>
         data-fi-modal-id="<?php echo e($id); ?>"
@@ -204,9 +216,6 @@ unset($__defined_vars, $__key, $__value); ?>
     }"
     x-cloak
     x-show="isOpen"
-    <?php if(! $isClickThrough): ?>
-        x-trap<?php echo e($focusTrapReturnsFocus ? '' : '.noreturn'); ?><?php echo e($autofocus ? '' : '.noautofocus'); ?>="isTrapActive"
-    <?php endif; ?>
     <?php echo e($attributes->class([
             'fi-modal',
             'fi-absolute-positioning-context',
@@ -225,7 +234,7 @@ unset($__defined_vars, $__key, $__value); ?>
             aria-hidden="true"
             x-show="isOpen"
             x-transition.duration.300ms.opacity
-            <?php echo e(($extraModalOverlayAttributeBag ?? new \Filament\Support\View\ComponentAttributeBag)->class([
+            <?php echo e(($extraModalOverlayAttributeBag ?? new FilamentComponentAttributeBag)->class([
                     'fi-modal-close-overlay',
                 ])); ?>
 
@@ -233,8 +242,12 @@ unset($__defined_vars, $__key, $__value); ?>
     <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
     <div
+        tabindex="-1"
         <?php if($closeByClickingAway): ?>
             x-on:click.self="<?php echo e($closeEventHandler); ?>"
+        <?php endif; ?>
+        <?php if(! $isClickThrough): ?>
+            x-trap.noreturn<?php echo e($autofocus ? '' : '.noautofocus'); ?>="isTrapActive"
         <?php endif; ?>
         class="<?php echo \Illuminate\Support\Arr::toCssClasses([
             'fi-modal-window-ctn',
@@ -261,7 +274,7 @@ unset($__defined_vars, $__key, $__value); ?>
             <?php if(filled($id)): ?>
                 <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = '{{ isset($this) ? '; ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = '{{ isset($this) ? '; ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = '{{ isset($this) ? '; ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = '{{ isset($this) ? '; ?>wire:key="<?php echo e(isset($this) ? "{$this->getId()}." : ''); ?>modal.<?php echo e($id); ?>.window"
             <?php endif; ?>
-            <?php echo e(($extraModalWindowAttributeBag ?? new \Filament\Support\View\ComponentAttributeBag)->merge([
+            <?php echo e(($extraModalWindowAttributeBag ?? new FilamentComponentAttributeBag)->merge([
                     // When `Escape` does not close the modal, the close button stays in the tab order as the only keyboard way to dismiss it, so the window takes the focus trap's `[autofocus]` to stop the button from being autofocused when the modal opens.
                     'autofocus' => $closeButton && (! $closeByEscaping) && ($heading || $header),
                     'tabindex' => ($closeButton && (! $closeByEscaping) && ($heading || $header)) ? '-1' : null,
@@ -291,14 +304,14 @@ unset($__defined_vars, $__key, $__value); ?>
                         
                         <?php if (isset($component)) { $__componentOriginalf0029cce6d19fd6d472097ff06a800a1 = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginalf0029cce6d19fd6d472097ff06a800a1 = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.icon-button','data' => ['color' => 'gray','icon' => \Filament\Support\Icons\Heroicon::OutlinedXMark,'iconAlias' => \Filament\Support\View\SupportIconAlias::MODAL_CLOSE_BUTTON,'iconSize' => 'lg','label' => __('filament::components/modal.actions.close.label'),'tabindex' => $closeByEscaping ? '-1' : null,'xOn:click' => $closeEventHandler,'class' => 'fi-modal-close-btn']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.icon-button','data' => ['color' => 'gray','icon' => Heroicon::OutlinedXMark,'iconAlias' => SupportIconAlias::MODAL_CLOSE_BUTTON,'iconSize' => 'lg','label' => __('filament::components/modal.actions.close.label'),'tabindex' => $closeByEscaping ? '-1' : null,'xOn:click' => $closeEventHandler,'class' => 'fi-modal-close-btn']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('filament::icon-button'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['color' => 'gray','icon' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(\Filament\Support\Icons\Heroicon::OutlinedXMark),'icon-alias' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(\Filament\Support\View\SupportIconAlias::MODAL_CLOSE_BUTTON),'icon-size' => 'lg','label' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(__('filament::components/modal.actions.close.label')),'tabindex' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($closeByEscaping ? '-1' : null),'x-on:click' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($closeEventHandler),'class' => 'fi-modal-close-btn']); ?>
+<?php $component->withAttributes(['color' => 'gray','icon' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(Heroicon::OutlinedXMark),'icon-alias' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(SupportIconAlias::MODAL_CLOSE_BUTTON),'icon-size' => 'lg','label' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(__('filament::components/modal.actions.close.label')),'tabindex' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($closeByEscaping ? '-1' : null),'x-on:click' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($closeEventHandler),'class' => 'fi-modal-close-btn']); ?>
 <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
 
 <?php echo $__env->renderComponent(); ?>

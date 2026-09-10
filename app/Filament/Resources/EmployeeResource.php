@@ -233,22 +233,29 @@ class EmployeeResource extends Resource
             ->filters([
                 SelectFilter::make('company_id')
                     ->label('Badan Usaha')
-                    ->relationship('company', 'name'),
+                    ->relationship('company', 'name')
+                    ->searchable(fn (): bool => Company::count() > 5)
+                    ->preload(),
 
                 SelectFilter::make('division_id')
                     ->label('Divisi')
-                    ->relationship('division', 'name'),
+                    ->relationship('division', 'name')
+                    ->searchable(fn (): bool => Division::count() > 5)
+                    ->preload(),
 
                 SelectFilter::make('job_level_id')
                     ->label('Level Jabatan')
-                    ->relationship('jobLevel', 'name'),
+                    ->relationship('jobLevel', 'name')
+                    ->searchable(fn (): bool => JobLevel::count() > 5)
+                    ->preload(),
 
                 SelectFilter::make('status')
                     ->label('Status')
                     ->options([
                         'active' => 'Aktif',
                         'inactive' => 'Non-Aktif',
-                    ]),
+                    ])
+                    ->searchable(fn (SelectFilter $f): bool => count($f->getOptions()) > 5),
             ])
             ->actions([
                 Action::make('createUser')

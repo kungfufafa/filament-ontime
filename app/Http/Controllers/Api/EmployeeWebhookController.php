@@ -14,7 +14,7 @@ class EmployeeWebhookController extends Controller
         $secret = config('services.core.webhook_secret');
         $signature = $request->header('X-Signature');
 
-        if (!$signature || hash_hmac('sha256', $request->getContent(), $secret) !== $signature) {
+        if (! $signature || hash_hmac('sha256', $request->getContent(), $secret) !== $signature) {
             abort(401, 'Invalid signature.');
         }
 

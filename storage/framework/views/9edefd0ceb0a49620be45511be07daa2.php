@@ -63,16 +63,19 @@ foreach ($attributes->all() as $__key => $__value) {
 unset($__defined_vars, $__key, $__value); ?>
 
 <?php
+    use Filament\Actions\Action;
+    use Filament\Support\View\ComponentAttributeBag;
     use Filament\Support\View\Components\InputComponent\WrapperComponent\IconComponent;
+    use Illuminate\Support\Str;
 
     $prefixActions = array_filter(
         $prefixActions,
-        fn (\Filament\Actions\Action $prefixAction): bool => $prefixAction->isVisible(),
+        fn (Action $prefixAction): bool => $prefixAction->isVisible(),
     );
 
     $suffixActions = array_filter(
         $suffixActions,
-        fn (\Filament\Actions\Action $suffixAction): bool => $suffixAction->isVisible(),
+        fn (Action $suffixAction): bool => $suffixAction->isVisible(),
     );
 
     $hasAlpineDisabledClasses = filled($alpineDisabled);
@@ -92,7 +95,7 @@ unset($__defined_vars, $__key, $__value); ?>
         : null;
 
     $prefixIconHtml = ($prefixIcon || $prefixIconAlias)
-        ? \Filament\Support\generate_icon_html($prefixIcon, $prefixIconAlias, (new \Filament\Support\View\ComponentAttributeBag)
+        ? \Filament\Support\generate_icon_html($prefixIcon, $prefixIconAlias, (new ComponentAttributeBag)
             ->merge([
                 'wire:loading.remove.delay.' . $loadingDelay => $hasLoadingIndicator,
                 'wire:target' => $hasLoadingIndicator ? $loadingIndicatorTarget : false,
@@ -101,7 +104,7 @@ unset($__defined_vars, $__key, $__value); ?>
         : null;
 
     $suffixIconHtml = ($suffixIcon || $suffixIconAlias)
-        ? \Filament\Support\generate_icon_html($suffixIcon, $suffixIconAlias, (new \Filament\Support\View\ComponentAttributeBag)
+        ? \Filament\Support\generate_icon_html($suffixIcon, $suffixIconAlias, (new ComponentAttributeBag)
             ->merge([
                 'wire:loading.remove.delay.' . $loadingDelay => $hasLoadingIndicator,
                 'wire:target' => $hasLoadingIndicator ? $loadingIndicatorTarget : false,
@@ -140,7 +143,7 @@ unset($__defined_vars, $__key, $__value); ?>
             <?php if(! $hasPrefix): ?>
                 wire:loading.delay.<?php echo e($loadingDelay); ?>.flex
                 wire:target="<?php echo e($loadingIndicatorTarget); ?>"
-                <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e(\Illuminate\Support\Str::random()).''; ?>wire:key="<?php echo e(\Illuminate\Support\Str::random()); ?>" 
+                <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e(Str::random()).''; ?>wire:key="<?php echo e(Str::random()); ?>" 
             <?php endif; ?>
             <?php if($canClickPrefixAffix): ?>
                 x-on:click="$dispatch('focus-input')"
@@ -168,7 +171,7 @@ unset($__defined_vars, $__key, $__value); ?>
 
 
             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($hasLoadingIndicator): ?>
-                <?php echo e(\Filament\Support\generate_loading_indicator_html((new \Filament\Support\View\ComponentAttributeBag([
+                <?php echo e(\Filament\Support\generate_loading_indicator_html((new ComponentAttributeBag([
                         'wire:loading.delay.' . $loadingDelay => $hasPrefix,
                         'wire:target' => $hasPrefix ? $loadingIndicatorTarget : null,
                     ]))->color(IconComponent::class, 'gray'))); ?>

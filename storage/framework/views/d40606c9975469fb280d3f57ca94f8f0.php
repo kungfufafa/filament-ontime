@@ -1,8 +1,14 @@
 <?php
+    use Filament\Actions\Action;
+    use Filament\Actions\ActionGroup;
+    use Filament\Actions\BulkAction;
+    use Filament\Actions\BulkActionGroup;
     use Filament\Support\Enums\Alignment;
+    use Filament\Support\Enums\IconSize;
     use Filament\Support\Enums\VerticalAlignment;
     use Filament\Support\Enums\Width;
     use Filament\Support\Facades\FilamentView;
+    use Filament\Support\Icons\Heroicon;
     use Filament\Support\View\ComponentAttributeBag as FilamentComponentAttributeBag;
     use Filament\Tables\Actions\HeaderActionsPosition;
     use Filament\Tables\Columns\Column;
@@ -13,7 +19,16 @@
     use Filament\Tables\Enums\FiltersResetActionPosition;
     use Filament\Tables\Enums\RecordActionsPosition;
     use Filament\Tables\Enums\RecordCheckboxPosition;
+    use Filament\Tables\Filters\Indicator;
+    use Filament\Tables\Table;
+    use Filament\Tables\View\TablesIconAlias;
     use Filament\Tables\View\TablesRenderHook;
+    use Illuminate\Contracts\Pagination\CursorPaginator;
+    use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+    use Illuminate\Contracts\Pagination\Paginator;
+    use Illuminate\Contracts\Support\Htmlable;
+    use Illuminate\Database\Query\Builder;
+    use Illuminate\Support\Number;
     use Illuminate\Support\Str;
     use Illuminate\View\ComponentAttributeBag;
 
@@ -51,24 +66,24 @@
     $header = $getHeader();
     $headerActions = array_filter(
         $getHeaderActions(),
-        fn (\Filament\Actions\Action | \Filament\Actions\ActionGroup $action): bool => $action->isVisible(),
+        fn (\Filament\Actions\Action | ActionGroup $action): bool => $action->isVisible(),
     );
     $headerActionsPosition = $getHeaderActionsPosition();
     $heading = $getHeading();
     $group = $getGrouping();
     $toolbarActions = array_filter(
         $getToolbarActions(),
-        fn (\Filament\Actions\Action | \Filament\Actions\ActionGroup $action): bool => $action->isVisible(),
+        fn (\Filament\Actions\Action | ActionGroup $action): bool => $action->isVisible(),
     );
 
     $hasNonBulkToolbarAction = false;
 
     foreach ($toolbarActions as $toolbarAction) {
-        if ($toolbarAction instanceof \Filament\Actions\BulkActionGroup) {
+        if ($toolbarAction instanceof BulkActionGroup) {
             continue;
         }
 
-        if ($toolbarAction instanceof \Filament\Actions\ActionGroup) {
+        if ($toolbarAction instanceof ActionGroup) {
             if ($toolbarAction->hasNonBulkAction()) {
                 $hasNonBulkToolbarAction = true;
 
@@ -135,7 +150,7 @@
     $secondLevelHeadingTag = $heading ? $getHeadingTag(1) : $headingTag;
     $pluralModelLabel = $getPluralModelLabel();
     $records = $isLoaded ? $getRecords() : null;
-    $hasPagination = (($records instanceof \Illuminate\Contracts\Pagination\Paginator) || ($records instanceof \Illuminate\Contracts\Pagination\CursorPaginator)) && (($records instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator) ? $records->total() : $records->isNotEmpty());
+    $hasPagination = (($records instanceof Paginator) || ($records instanceof CursorPaginator)) && (($records instanceof LengthAwarePaginator) ? $records->total() : $records->isNotEmpty());
     $hasEmptyState = ($records !== null) && ! count($records);
     $hasContentLayout = $content || $hasColumnsLayout;
     $searchDebounce = $getSearchDebounce();
@@ -152,7 +167,7 @@
             function (array $carry, $action) use ($record): array {
                 $action = $action->getClone();
 
-                if (! $action instanceof \Filament\Actions\BulkAction) {
+                if (! $action instanceof BulkAction) {
                     $action->record($record);
                 }
 
@@ -195,14 +210,14 @@
     }
 
     if ($group) {
-        $groupedSummarySelectedState = $this->getTableSummarySelectedState($this->getAllTableSummaryQuery(), modifyQueryUsing: fn (\Illuminate\Database\Query\Builder $query) => $group->groupQuery($query, model: $getQuery()->getModel()));
+        $groupedSummarySelectedState = $this->getTableSummarySelectedState($this->getAllTableSummaryQuery(), modifyQueryUsing: fn (Builder $query) => $group->groupQuery($query, model: $getQuery()->getModel()));
     }
 
     if (is_string($filtersFormWidth)) {
         $filtersFormWidth = Width::tryFrom($filtersFormWidth) ?? $filtersFormWidth;
     }
 
-    $loadingTargetsWireTarget = implode(',', \Filament\Tables\Table::LOADING_TARGETS);
+    $loadingTargetsWireTarget = implode(',', Table::LOADING_TARGETS);
 ?>
 
 <div
@@ -288,11 +303,11 @@
                 <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($header): ?>
                     <?php echo e($header); ?>
 
-                <?php elseif(($heading || $description || $headerActions) && ! $isReordering): ?>
+                <?php elseif($heading || $description || ($headerActions && (! $isReordering))): ?>
                     <div
                         class="<?php echo \Illuminate\Support\Arr::toCssClasses([
                             'fi-ta-header',
-                            'fi-ta-header-adaptive-actions-position' => $headerActions && ($headerActionsPosition === HeaderActionsPosition::Adaptive),
+                            'fi-ta-header-adaptive-actions-position' => $headerActions && (! $isReordering) && ($headerActionsPosition === HeaderActionsPosition::Adaptive),
                         ]); ?>"
                     >
                         <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($heading || $description): ?>
@@ -1078,7 +1093,7 @@
                     <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.reorder.indicator'; ?>wire:key="<?php echo e($this->getId()); ?>.table.reorder.indicator"
                     class="fi-ta-reorder-indicator"
                 >
-                    <?php echo e(\Filament\Support\generate_loading_indicator_html(new \Filament\Support\View\ComponentAttributeBag([
+                    <?php echo e(\Filament\Support\generate_loading_indicator_html(new Filament\Support\View\ComponentAttributeBag([
                             'wire:loading.delay.' . config('filament.livewire_loading_delay', 'default') => '',
                             'wire:target' => 'reorderTable',
                         ]))); ?>
@@ -1099,7 +1114,7 @@
                     class="fi-ta-selection-indicator"
                 >
                     <div>
-                        <?php echo e(\Filament\Support\generate_loading_indicator_html(new \Filament\Support\View\ComponentAttributeBag([
+                        <?php echo e(\Filament\Support\generate_loading_indicator_html(new Filament\Support\View\ComponentAttributeBag([
                                 'x-show' => 'isLoading',
                             ]))); ?>
 
@@ -1132,7 +1147,7 @@
 <?php $component->withAttributes(['color' => 'primary','tag' => 'button','x-on:click' => 'selectAllRecords','x-show' => 'canSelectAllRecords()','wire:key' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($this->getId() . 'table.selection.indicator.actions.select-all.' . $allSelectableRecordsCount . '.' . $page)]); ?>
 <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
 
-                                        <?php echo e(trans_choice('filament-tables::table.selection_indicator.actions.select_all.label', $allSelectableRecordsCount, ['count' => \Illuminate\Support\Number::format($allSelectableRecordsCount, locale: app()->getLocale())])); ?>
+                                        <?php echo e(trans_choice('filament-tables::table.selection_indicator.actions.select_all.label', $allSelectableRecordsCount, ['count' => Number::format($allSelectableRecordsCount, locale: app()->getLocale())])); ?>
 
                                      <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -1191,7 +1206,10 @@
 
                             </span>
 
-                            <div class="fi-ta-filter-indicators-badges-ctn">
+                            <div
+                                class="fi-ta-filter-indicators-badges-ctn"
+                                role="list"
+                            >
                                 <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::openLoop(); ?><?php endif; ?><?php $__currentLoopData = $filterIndicators; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $indicator): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::startLoopIteration(); ?><?php endif; ?>
                                     <?php
                                         $indicatorColor = $indicator->getColor();
@@ -1199,14 +1217,14 @@
 
                                     <?php if (isset($component)) { $__componentOriginal986dce9114ddce94a270ab00ce6c273d = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal986dce9114ddce94a270ab00ce6c273d = $attributes; } ?>
-<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.badge','data' => ['color' => $indicatorColor]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
+<?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.badge','data' => ['color' => $indicatorColor,'role' => 'listitem']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
 <?php $component->withName('filament::badge'); ?>
 <?php if ($component->shouldRender()): ?>
 <?php $__env->startComponent($component->resolveView(), $component->data()); ?>
 <?php if (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag): ?>
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
-<?php $component->withAttributes(['color' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($indicatorColor)]); ?>
+<?php $component->withAttributes(['color' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($indicatorColor),'role' => 'listitem']); ?>
 <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::processComponentKey($component); ?>
 
                                         <?php echo e($indicator->getLabel()); ?>
@@ -1233,7 +1251,7 @@
                             </div>
                         </div>
 
-                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(collect($filterIndicators)->contains(fn (\Filament\Tables\Filters\Indicator $indicator): bool => $indicator->isRemovable())): ?>
+                        <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(collect($filterIndicators)->contains(fn (Indicator $indicator): bool => $indicator->isRemovable())): ?>
                             <?php echo e($getFiltersRemoveAllAction()); ?>
 
                         <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
@@ -1255,7 +1273,7 @@
                             // stable across pages, the live region only announces when the result set really
                             // changes, not on every pagination click. Non-length-aware paginators fall back to
                             // the page count.
-                            $resultCount = ($records instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator)
+                            $resultCount = ($records instanceof LengthAwarePaginator)
                                 ? $records->total()
                                 : count($records);
                         ?>
@@ -1276,7 +1294,7 @@
                             <?php
                                 $sortableColumns = array_filter(
                                     $columns,
-                                    fn (\Filament\Tables\Columns\Column $column): bool => $column->isSortable(),
+                                    fn (Column $column): bool => $column->isSortable(),
                                 );
                             ?>
 
@@ -1313,7 +1331,7 @@
                                             "
                                             x-on:click="toggleSelectRecordsOnPage"
                                             
-                                            <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.bulk-select-page.checkbox.'.e(\Illuminate\Support\Str::random()).''; ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.bulk-select-page.checkbox.'.e(\Illuminate\Support\Str::random()).''; ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.bulk-select-page.checkbox.'.e(\Illuminate\Support\Str::random()).''; ?>wire:key="<?php echo e($this->getId()); ?>.table.bulk-select-page.checkbox.<?php echo e(\Illuminate\Support\Str::random()); ?>"
+                                            <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.bulk-select-page.checkbox.'.e(Str::random()).''; ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.bulk-select-page.checkbox.'.e(Str::random()).''; ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.bulk-select-page.checkbox.'.e(Str::random()).''; ?>wire:key="<?php echo e($this->getId()); ?>.table.bulk-select-page.checkbox.<?php echo e(Str::random()); ?>"
                                             wire:loading.attr="disabled"
                                             wire:target="<?php echo e($loadingTargetsWireTarget); ?>"
                                             class="fi-ta-page-checkbox fi-checkbox-input"
@@ -1673,7 +1691,7 @@
                                                     type="button"
                                                     class="fi-icon-btn fi-size-sm"
                                                 >
-                                                    <?php echo e(\Filament\Support\generate_icon_html(\Filament\Support\Icons\Heroicon::ChevronUp, alias: \Filament\Tables\View\TablesIconAlias::GROUPING_COLLAPSE_BUTTON, size: \Filament\Support\Enums\IconSize::Small)); ?>
+                                                    <?php echo e(\Filament\Support\generate_icon_html(Heroicon::ChevronUp, alias: TablesIconAlias::GROUPING_COLLAPSE_BUTTON, size: IconSize::Small)); ?>
 
                                                 </button>
                                             <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
@@ -1718,7 +1736,7 @@
                                                 class="fi-ta-reorder-handle fi-icon-btn"
                                                 type="button"
                                             >
-                                                <?php echo e(\Filament\Support\generate_icon_html(\Filament\Support\Icons\Heroicon::Bars2, alias: \Filament\Tables\View\TablesIconAlias::REORDER_HANDLE)); ?>
+                                                <?php echo e(\Filament\Support\generate_icon_html(Heroicon::Bars2, alias: TablesIconAlias::REORDER_HANDLE)); ?>
 
                                             </button>
                                         <?php elseif($recordIsSelectable): ?>
@@ -1837,7 +1855,7 @@
                                                 x-on:click="isCollapsed = ! isCollapsed"
                                                 class="fi-ta-record-collapse-btn fi-icon-btn"
                                             >
-                                                <?php echo e(\Filament\Support\generate_icon_html(\Filament\Support\Icons\Heroicon::ChevronDown, alias: \Filament\Tables\View\TablesIconAlias::COLUMNS_COLLAPSE_BUTTON)); ?>
+                                                <?php echo e(\Filament\Support\generate_icon_html(Heroicon::ChevronDown, alias: TablesIconAlias::COLUMNS_COLLAPSE_BUTTON)); ?>
 
                                             </button>
                                         <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
@@ -1925,7 +1943,7 @@
                         <?php
                             $sortableColumns = $isStackedOnMobile ? array_filter(
                                 $columns,
-                                fn (\Filament\Tables\Columns\Column $column): bool => $column->isSortable(),
+                                fn (Column $column): bool => $column->isSortable(),
                             ) : [];
                         ?>
 
@@ -2154,7 +2172,7 @@
                                                     "
                                                     x-on:click="toggleSelectRecordsOnPage"
                                                     
-                                                    <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.bulk-select-page.checkbox.stacked.'.e(\Illuminate\Support\Str::random()).''; ?>wire:key="<?php echo e($this->getId()); ?>.table.bulk-select-page.checkbox.stacked.<?php echo e(\Illuminate\Support\Str::random()); ?>"
+                                                    <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.bulk-select-page.checkbox.stacked.'.e(Str::random()).''; ?>wire:key="<?php echo e($this->getId()); ?>.table.bulk-select-page.checkbox.stacked.<?php echo e(Str::random()); ?>"
                                                     wire:loading.attr="disabled"
                                                     wire:target="<?php echo e($loadingTargetsWireTarget); ?>"
                                                     class="fi-ta-page-checkbox fi-checkbox-input"
@@ -2197,7 +2215,7 @@
                                                         <?php echo e($columnGroup->getExtraHeaderAttributeBag()->class([
                                                                 'fi-ta-header-group-cell',
                                                                 'fi-wrapped' => $columnGroup->canHeaderWrap(),
-                                                                ((($columnGroupAlignment = $columnGroup->getAlignment()) instanceof \Filament\Support\Enums\Alignment) ? "fi-align-{$columnGroupAlignment->value}" : (is_string($columnGroupAlignment) ? $columnGroupAlignment : '')),
+                                                                ((($columnGroupAlignment = $columnGroup->getAlignment()) instanceof Filament\Support\Enums\Alignment) ? "fi-align-{$columnGroupAlignment->value}" : (is_string($columnGroupAlignment) ? $columnGroupAlignment : '')),
                                                                 (filled($columnGroupHiddenFrom = $columnGroup->getHiddenFrom()) ? "{$columnGroupHiddenFrom}:fi-hidden" : ''),
                                                                 (filled($columnGroupVisibleFrom = $columnGroup->getVisibleFrom()) ? "{$columnGroupVisibleFrom}:fi-visible" : ''),
                                                             ])); ?>
@@ -2281,7 +2299,7 @@
                                                             "
                                                             x-on:click="toggleSelectRecordsOnPage"
                                                             
-                                                            <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.bulk-select-page.checkbox.'.e(\Illuminate\Support\Str::random()).''; ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.bulk-select-page.checkbox.'.e(\Illuminate\Support\Str::random()).''; ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.bulk-select-page.checkbox.'.e(\Illuminate\Support\Str::random()).''; ?>wire:key="<?php echo e($this->getId()); ?>.table.bulk-select-page.checkbox.<?php echo e(\Illuminate\Support\Str::random()); ?>"
+                                                            <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.bulk-select-page.checkbox.'.e(Str::random()).''; ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.bulk-select-page.checkbox.'.e(Str::random()).''; ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.bulk-select-page.checkbox.'.e(Str::random()).''; ?>wire:key="<?php echo e($this->getId()); ?>.table.bulk-select-page.checkbox.<?php echo e(Str::random()); ?>"
                                                             wire:loading.attr="disabled"
                                                             wire:target="<?php echo e($loadingTargetsWireTarget); ?>"
                                                             class="fi-ta-page-checkbox fi-checkbox-input"
@@ -2331,10 +2349,10 @@
                                                 $isColumnSortable = $column->isSortable() && (! $isReordering);
 
                                                 // A custom label may contain interactive elements, which are invalid inside a native `<button>`, so a `<span>` with button semantics is used instead.
-                                                $columnSortControlTag = ($columnLabel instanceof \Illuminate\Contracts\Support\Htmlable) ? 'span' : 'button';
+                                                $columnSortControlTag = ($columnLabel instanceof Htmlable) ? 'span' : 'button';
 
                                                 $columnHeaderTooltip = $column->getHeaderTooltip();
-                                                $columnHeaderTooltipAttribute = ($columnHeaderTooltip instanceof \Illuminate\Contracts\Support\Htmlable)
+                                                $columnHeaderTooltipAttribute = ($columnHeaderTooltip instanceof Htmlable)
                                                     ? 'x-tooltip.html'
                                                     : 'x-tooltip';
                                             ?>
@@ -2352,7 +2370,7 @@
                                                             'fi-grouped' => $column->getGroup(),
                                                             'fi-wrapped' => $column->canHeaderWrap(),
                                                             'fi-ta-header-cell-sorted' => $isColumnActivelySorted,
-                                                            ((($columnAlignment = $column->getAlignment()) instanceof \Filament\Support\Enums\Alignment) ? "fi-align-{$columnAlignment->value}" : (is_string($columnAlignment) ? $columnAlignment : '')),
+                                                            ((($columnAlignment = $column->getAlignment()) instanceof Filament\Support\Enums\Alignment) ? "fi-align-{$columnAlignment->value}" : (is_string($columnAlignment) ? $columnAlignment : '')),
                                                             (filled($columnHiddenFrom = $column->getHiddenFrom()) ? "{$columnHiddenFrom}:fi-hidden" : ''),
                                                             (filled($columnVisibleFrom = $column->getVisibleFrom()) ? "{$columnVisibleFrom}:fi-visible" : ''),
                                                         ])
@@ -2393,17 +2411,17 @@
 
                                                         <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
-                                                        <?php echo e(\Filament\Support\generate_icon_html(($isColumnActivelySorted && $sortDirection === 'asc') ? \Filament\Support\Icons\Heroicon::ChevronUp : \Filament\Support\Icons\Heroicon::ChevronDown, alias: match (true) {
-                                                                $isColumnActivelySorted && ($sortDirection === 'asc') => \Filament\Tables\View\TablesIconAlias::HEADER_CELL_SORT_ASC_BUTTON,
-                                                                $isColumnActivelySorted && ($sortDirection === 'desc') => \Filament\Tables\View\TablesIconAlias::HEADER_CELL_SORT_DESC_BUTTON,
-                                                                default => \Filament\Tables\View\TablesIconAlias::HEADER_CELL_SORT_BUTTON,
-                                                            }, attributes: (new \Filament\Support\View\ComponentAttributeBag([
+                                                        <?php echo e(\Filament\Support\generate_icon_html(($isColumnActivelySorted && $sortDirection === 'asc') ? Heroicon::ChevronUp : Heroicon::ChevronDown, alias: match (true) {
+                                                                $isColumnActivelySorted && ($sortDirection === 'asc') => TablesIconAlias::HEADER_CELL_SORT_ASC_BUTTON,
+                                                                $isColumnActivelySorted && ($sortDirection === 'desc') => TablesIconAlias::HEADER_CELL_SORT_DESC_BUTTON,
+                                                                default => TablesIconAlias::HEADER_CELL_SORT_BUTTON,
+                                                            }, attributes: (new Filament\Support\View\ComponentAttributeBag([
                                                                 'wire:loading.remove.delay.' . config('filament.livewire_loading_delay', 'default') => true,
                                                                 'wire:target' => "sortTable('{$columnName}')",
                                                             ])))); ?>
 
 
-                                                        <?php echo e(\Filament\Support\generate_loading_indicator_html(new \Filament\Support\View\ComponentAttributeBag([
+                                                        <?php echo e(\Filament\Support\generate_loading_indicator_html(new Filament\Support\View\ComponentAttributeBag([
                                                                 'wire:loading.delay.' . config('filament.livewire_loading_delay', 'default') => '',
                                                                 'wire:target' => "sortTable('{$columnName}')",
                                                             ]))); ?>
@@ -2485,7 +2503,7 @@
                                                         "
                                                         x-on:click="toggleSelectRecordsOnPage"
                                                         
-                                                        <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.bulk-select-page.checkbox.'.e(\Illuminate\Support\Str::random()).''; ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.bulk-select-page.checkbox.'.e(\Illuminate\Support\Str::random()).''; ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.bulk-select-page.checkbox.'.e(\Illuminate\Support\Str::random()).''; ?>wire:key="<?php echo e($this->getId()); ?>.table.bulk-select-page.checkbox.<?php echo e(\Illuminate\Support\Str::random()); ?>"
+                                                        <?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.bulk-select-page.checkbox.'.e(Str::random()).''; ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.bulk-select-page.checkbox.'.e(Str::random()).''; ?><?php \Livewire\Features\SupportCompiledWireKeys\SupportCompiledWireKeys::$currentLoop['key'] = ''.e($this->getId()).'.table.bulk-select-page.checkbox.'.e(Str::random()).''; ?>wire:key="<?php echo e($this->getId()); ?>.table.bulk-select-page.checkbox.<?php echo e(Str::random()); ?>"
                                                         wire:loading.attr="disabled"
                                                         wire:target="<?php echo e($loadingTargetsWireTarget); ?>"
                                                         class="fi-ta-page-checkbox fi-checkbox-input"
@@ -2765,7 +2783,7 @@
                                                                         type="button"
                                                                         class="fi-icon-btn fi-size-sm"
                                                                     >
-                                                                        <?php echo e(\Filament\Support\generate_icon_html(\Filament\Support\Icons\Heroicon::ChevronUp, alias: \Filament\Tables\View\TablesIconAlias::GROUPING_COLLAPSE_BUTTON, size: \Filament\Support\Enums\IconSize::Small)); ?>
+                                                                        <?php echo e(\Filament\Support\generate_icon_html(Heroicon::ChevronUp, alias: TablesIconAlias::GROUPING_COLLAPSE_BUTTON, size: IconSize::Small)); ?>
 
                                                                     </button>
                                                                 <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
@@ -2851,7 +2869,7 @@
                                                                 class="fi-ta-reorder-handle fi-icon-btn"
                                                                 type="button"
                                                             >
-                                                                <?php echo e(\Filament\Support\generate_icon_html(\Filament\Support\Icons\Heroicon::Bars2, alias: \Filament\Tables\View\TablesIconAlias::REORDER_HANDLE)); ?>
+                                                                <?php echo e(\Filament\Support\generate_icon_html(Heroicon::Bars2, alias: TablesIconAlias::REORDER_HANDLE)); ?>
 
                                                             </button>
                                                         </td>
@@ -2944,7 +2962,7 @@
                                                             };
 
                                                             if ($columnWrapperTag === 'button') {
-                                                                if ($columnAction instanceof \Filament\Actions\Action) {
+                                                                if ($columnAction instanceof Action) {
                                                                     $columnWireClickAction = "mountTableAction('{$columnAction->getName()}', '{$recordKey}')";
                                                                 } elseif ($columnAction) {
                                                                     $columnWireClickAction = "callTableColumnAction('{$column->getName()}', '{$recordKey}')";
@@ -3153,7 +3171,7 @@
                             aria-live="polite"
                             class="fi-ta-table-loading-ctn"
                         >
-                            <?php echo e(\Filament\Support\generate_loading_indicator_html(size: \Filament\Support\Enums\IconSize::TwoExtraLarge)); ?>
+                            <?php echo e(\Filament\Support\generate_loading_indicator_html(size: IconSize::TwoExtraLarge)); ?>
 
 
                             <span class="fi-sr-only">
@@ -3173,7 +3191,7 @@
                     <div class="fi-ta-empty-state" role="status">
                         <div class="fi-ta-empty-state-content">
                             <div class="fi-ta-empty-state-icon-bg">
-                                <?php echo e(\Filament\Support\generate_icon_html($getEmptyStateIcon(), size: \Filament\Support\Enums\IconSize::Large)); ?>
+                                <?php echo e(\Filament\Support\generate_icon_html($getEmptyStateIcon(), size: IconSize::Large)); ?>
 
                             </div>
 
@@ -3194,7 +3212,7 @@
 
                             <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if($emptyStateActions = array_filter(
                                      $getEmptyStateActions(),
-                                     fn (\Filament\Actions\Action | \Filament\Actions\ActionGroup $action): bool => $action->isVisible(),
+                                     fn (\Filament\Actions\Action | ActionGroup $action): bool => $action->isVisible(),
                                  )): ?>
                                 <div
                                     class="fi-ta-actions fi-align-center fi-wrapped"

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\Core\CoreUserSynchronizer;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Socialite\Facades\Socialite;
+use Spatie\Permission\Models\Permission;
 
 class CoreSsoController extends Controller
 {
@@ -23,7 +24,7 @@ class CoreSsoController extends Controller
     {
         try {
             $ssoUser = Socialite::driver('core')->user();
-            
+
             // Sync user details and auto-link employee
             $user = $userSynchronizer->sync($ssoUser->getRaw());
 
@@ -31,7 +32,7 @@ class CoreSsoController extends Controller
             if (isset($ssoUser->user['permissions']) && is_array($ssoUser->user['permissions'])) {
                 $validPermissions = [];
                 foreach ($ssoUser->user['permissions'] as $permissionName) {
-                    \Spatie\Permission\Models\Permission::findOrCreate($permissionName, 'web');
+                    Permission::findOrCreate($permissionName, 'web');
                     $validPermissions[] = $permissionName;
                 }
                 $user->syncPermissions($validPermissions);
@@ -42,10 +43,10 @@ class CoreSsoController extends Controller
 
             // Redirect to intended dashboard
             return redirect()->intended(config('filament.home_url', '/admin'));
-            
+
         } catch (\Exception $e) {
             // Log or handle the exception appropriately
-            return redirect('/')->withErrors(['error' => 'SSO Authentication failed: ' . $e->getMessage()]);
+            return redirect('/')->withErrors(['error' => 'SSO Authentication failed: '.$e->getMessage()]);
         }
     }
 }

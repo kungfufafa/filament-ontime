@@ -1,12 +1,15 @@
 <?php
+    use Filament\Notifications\View\NotificationsIconAlias;
     use Filament\Support\Enums\Alignment;
+    use Filament\Support\Icons\Heroicon;
     use Filament\Support\View\ComponentAttributeBag as FilamentComponentAttributeBag;
     use Filament\Support\View\Components\BadgeComponent;
+    use Illuminate\Contracts\Pagination\Paginator;
 
     $notifications = $this->getNotifications();
     $unreadNotificationsCount = $this->getUnreadNotificationsCount();
     $hasNotifications = $notifications->count();
-    $isPaginated = $notifications instanceof \Illuminate\Contracts\Pagination\Paginator && $notifications->hasPages();
+    $isPaginated = $notifications instanceof Paginator && $notifications->hasPages();
     $pollingInterval = $this->getPollingInterval();
 ?>
 
@@ -15,16 +18,16 @@
     <?php if (isset($component)) { $__componentOriginal0942a211c37469064369f887ae8d1cef = $component; } ?>
 <?php if (isset($attributes)) { $__attributesOriginal0942a211c37469064369f887ae8d1cef = $attributes; } ?>
 <?php $component = Illuminate\View\AnonymousComponent::resolve(['view' => 'filament::components.modal.index','data' => ['alignment' => $hasNotifications ? null : Alignment::Center,'ariaLabelledby' => 'database-notifications.heading','closeButton' => true,'description' => $hasNotifications ? null : __('filament-notifications::database.modal.empty.description'),'extraModalWindowAttributeBag' => 
-            new \Filament\Support\View\ComponentAttributeBag([
+            new FilamentComponentAttributeBag([
                 'autofocus' => true,
                 'tabindex' => '-1',
             ])
-        ,'heading' => $hasNotifications ? null : __('filament-notifications::database.modal.empty.heading'),'icon' => $hasNotifications ? null : \Filament\Support\Icons\Heroicon::OutlinedBellSlash,'iconAlias' => 
+        ,'heading' => $hasNotifications ? null : __('filament-notifications::database.modal.empty.heading'),'icon' => $hasNotifications ? null : Heroicon::OutlinedBellSlash,'iconAlias' => 
             $hasNotifications
             ? null
-            : \Filament\Notifications\View\NotificationsIconAlias::DATABASE_MODAL_EMPTY_STATE
+            : NotificationsIconAlias::DATABASE_MODAL_EMPTY_STATE
         ,'iconColor' => $hasNotifications ? null : 'gray','id' => 'database-notifications','slideOver' => true,'stickyHeader' => $hasNotifications,'teleport' => 'body','width' => 'md','class' => 'fi-no-database','attributes' => 
-            new \Filament\Support\View\ComponentAttributeBag([
+            new FilamentComponentAttributeBag([
                 'wire:poll.' . $pollingInterval => $pollingInterval ? '' : false,
             ])
         ]] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -35,16 +38,16 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['alignment' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($hasNotifications ? null : Alignment::Center),'aria-labelledby' => 'database-notifications.heading','close-button' => true,'description' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($hasNotifications ? null : __('filament-notifications::database.modal.empty.description')),'extra-modal-window-attribute-bag' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(
-            new \Filament\Support\View\ComponentAttributeBag([
+            new FilamentComponentAttributeBag([
                 'autofocus' => true,
                 'tabindex' => '-1',
             ])
-        ),'heading' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($hasNotifications ? null : __('filament-notifications::database.modal.empty.heading')),'icon' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($hasNotifications ? null : \Filament\Support\Icons\Heroicon::OutlinedBellSlash),'icon-alias' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(
+        ),'heading' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($hasNotifications ? null : __('filament-notifications::database.modal.empty.heading')),'icon' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($hasNotifications ? null : Heroicon::OutlinedBellSlash),'icon-alias' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(
             $hasNotifications
             ? null
-            : \Filament\Notifications\View\NotificationsIconAlias::DATABASE_MODAL_EMPTY_STATE
+            : NotificationsIconAlias::DATABASE_MODAL_EMPTY_STATE
         ),'icon-color' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($hasNotifications ? null : 'gray'),'id' => 'database-notifications','slide-over' => true,'sticky-header' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($hasNotifications),'teleport' => 'body','width' => 'md','class' => 'fi-no-database','attributes' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute(
-            new \Filament\Support\View\ComponentAttributeBag([
+            new FilamentComponentAttributeBag([
                 'wire:poll.' . $pollingInterval => $pollingInterval ? '' : false,
             ])
         )]); ?>

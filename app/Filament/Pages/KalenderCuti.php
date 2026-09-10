@@ -83,6 +83,7 @@ class KalenderCuti extends Page implements HasForms
                                     11 => 'November',
                                     12 => 'Desember',
                                 ])
+                                ->searchable(fn (Select $component): bool => count($component->getOptions()) > 5)
                                 ->live()
                                 ->required(),
 
@@ -93,6 +94,7 @@ class KalenderCuti extends Page implements HasForms
                                     2026 => '2026',
                                     2027 => '2027',
                                 ])
+                                ->searchable(fn (Select $component): bool => count($component->getOptions()) > 5)
                                 ->live()
                                 ->required(),
 
@@ -100,6 +102,7 @@ class KalenderCuti extends Page implements HasForms
                                 ->label('Perusahaan (Opsional)')
                                 ->options(Company::where('is_active', true)->pluck('name', 'id'))
                                 ->placeholder('Semua Perusahaan')
+                                ->searchable(fn (Select $component): bool => count($component->getOptions()) > 5)
                                 ->live()
                                 ->nullable(),
                         ]),

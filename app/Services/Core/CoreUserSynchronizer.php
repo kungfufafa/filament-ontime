@@ -20,10 +20,10 @@ class CoreUserSynchronizer
             ],
         );
 
-        if (!$user->employee_id) {
+        if (! $user->employee_id) {
             $employeeQuery = Employee::query()->where('email', $coreUserPayload['email']);
-            
-            if (!empty($coreUserPayload['phone'])) {
+
+            if (! empty($coreUserPayload['phone'])) {
                 $employeeQuery->orWhere('phone', $coreUserPayload['phone']);
             }
 

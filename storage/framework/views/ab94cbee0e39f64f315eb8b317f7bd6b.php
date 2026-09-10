@@ -33,6 +33,10 @@ foreach ($attributes->all() as $__key => $__value) {
 unset($__defined_vars, $__key, $__value); ?>
 
 <?php
+    use Filament\Livewire\Notifications;
+    use Filament\Support\Facades\FilamentView;
+    use Filament\View\PanelsRenderHook;
+
     $renderHookScopes = $livewire?->getRenderHookScopes();
 ?>
 
@@ -46,7 +50,7 @@ unset($__defined_vars, $__key, $__value); ?>
     ]); ?>"
 >
     <head>
-        <?php echo e(\Filament\Support\Facades\FilamentView::renderHook(\Filament\View\PanelsRenderHook::HEAD_START, scopes: $renderHookScopes)); ?>
+        <?php echo e(FilamentView::renderHook(PanelsRenderHook::HEAD_START, scopes: $renderHookScopes)); ?>
 
 
         <meta charset="utf-8" />
@@ -71,7 +75,7 @@ unset($__defined_vars, $__key, $__value); ?>
 
         </title>
 
-        <?php echo e(\Filament\Support\Facades\FilamentView::renderHook(\Filament\View\PanelsRenderHook::STYLES_BEFORE, scopes: $renderHookScopes)); ?>
+        <?php echo e(FilamentView::renderHook(PanelsRenderHook::STYLES_BEFORE, scopes: $renderHookScopes)); ?>
 
 
         <style>
@@ -132,7 +136,7 @@ unset($__defined_vars, $__key, $__value); ?>
 
         <?php echo $__env->yieldPushContent('styles'); ?>
 
-        <?php echo e(\Filament\Support\Facades\FilamentView::renderHook(\Filament\View\PanelsRenderHook::STYLES_AFTER, scopes: $renderHookScopes)); ?>
+        <?php echo e(FilamentView::renderHook(PanelsRenderHook::STYLES_AFTER, scopes: $renderHookScopes)); ?>
 
 
         <?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if BLOCK]><![endif]--><?php endif; ?><?php if(! filament()->hasDarkMode()): ?>
@@ -164,7 +168,7 @@ unset($__defined_vars, $__key, $__value); ?>
             </script>
         <?php endif; ?><?php if(\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()): ?><!--[if ENDBLOCK]><![endif]--><?php endif; ?>
 
-        <?php echo e(\Filament\Support\Facades\FilamentView::renderHook(\Filament\View\PanelsRenderHook::HEAD_END, scopes: $renderHookScopes)); ?>
+        <?php echo e(FilamentView::renderHook(PanelsRenderHook::HEAD_END, scopes: $renderHookScopes)); ?>
 
     </head>
 
@@ -177,7 +181,7 @@ unset($__defined_vars, $__key, $__value); ?>
                 ])); ?>
 
     >
-        <?php echo e(\Filament\Support\Facades\FilamentView::renderHook(\Filament\View\PanelsRenderHook::BODY_START, scopes: $renderHookScopes)); ?>
+        <?php echo e(FilamentView::renderHook(PanelsRenderHook::BODY_START, scopes: $renderHookScopes)); ?>
 
 
         <?php echo e($slot); ?>
@@ -187,7 +191,7 @@ unset($__defined_vars, $__key, $__value); ?>
 $__split = function ($name, $params = []) {
     return [$name, $params];
 };
-[$__name, $__params] = $__split(Filament\Livewire\Notifications::class);
+[$__name, $__params] = $__split(Notifications::class);
 
 $__keyOuter = $__key ?? null;
 
@@ -210,7 +214,7 @@ unset($__componentSlots);
 unset($__split);
 ?>
 
-        <?php echo e(\Filament\Support\Facades\FilamentView::renderHook(\Filament\View\PanelsRenderHook::SCRIPTS_BEFORE, scopes: $renderHookScopes)); ?>
+        <?php echo e(FilamentView::renderHook(PanelsRenderHook::SCRIPTS_BEFORE, scopes: $renderHookScopes)); ?>
 
 
         <?php echo \Filament\Support\Facades\FilamentAsset::renderScripts(withCore: true) ?>
@@ -231,10 +235,10 @@ unset($__split);
 
         <?php echo $__env->yieldPushContent('scripts'); ?>
 
-        <?php echo e(\Filament\Support\Facades\FilamentView::renderHook(\Filament\View\PanelsRenderHook::SCRIPTS_AFTER, scopes: $renderHookScopes)); ?>
+        <?php echo e(FilamentView::renderHook(PanelsRenderHook::SCRIPTS_AFTER, scopes: $renderHookScopes)); ?>
 
 
-        <?php echo e(\Filament\Support\Facades\FilamentView::renderHook(\Filament\View\PanelsRenderHook::BODY_END, scopes: $renderHookScopes)); ?>
+        <?php echo e(FilamentView::renderHook(PanelsRenderHook::BODY_END, scopes: $renderHookScopes)); ?>
 
     </body>
 </html>

@@ -4,6 +4,11 @@ import { bunny } from 'laravel-vite-plugin/fonts';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
+    css: {
+        postcss: {
+            plugins: [],
+        },
+    },
     plugins: [
         laravel({
             input: [
@@ -16,6 +21,7 @@ export default defineConfig({
             fonts: [
                 bunny('Instrument Sans', {
                     weights: [400, 500, 600],
+                    optimizedFallbacks: false,
                 }),
             ],
         }),

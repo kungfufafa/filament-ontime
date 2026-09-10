@@ -902,3 +902,211 @@ Menambahkan komponen peta interaktif **OpenStreetMap (Leaflet)** ke form lokasi 
 - ✅ `tests/Feature/AttendanceInternFreelancerTest.php`: Passed (10 passed, 21 assertions).
 - ✅ `vendor/bin/pint --dirty --format agent`: Formatted cleanly.
 
+---
+
+## 📊 FASE 24: Format Baru Export Excel Rekap Absensi (Matriks Mingguan & Aturan Libur Otomatis)
+
+**Tanggal**: 2026-09-10
+
+### Latar Belakang & Permintaan Pengguna
+- Mengubah format export spreadsheet Excel pada halaman **Laporan Absensi** Filament dari format daftar baris tunggal (*flat row*) menjadi format **rekapitulasi matriks horizontal**:
+  - Kolom awal berisi identitas pegawai secara vertikal ke bawah (`No`, `Nama Karyawan`, `NIP / ID`, `Tipe`, `Divisi`).
+  - Kolom horizontal membentang ke kanan terbagi rapi **per minggu kalender** (`Minggu 1`, `Minggu 2`, dst.) sesuai rentang filter tanggal (`date_from` s/d `date_to`).
+  - Di bawah setiap tanggal terdapat sub-kolom **Masuk** (jam check-in) dan **Keluar** (jam check-out) dengan format `HH:mm`.
+  - Aturan otomatis libur akhir pekan:
+    - **Magang (Intern)**: Otomatis terisi `Libur` di hari **Sabtu** dan **Minggu** (bila tidak ada presensi).
+    - **Karyawan (Employee) & Freelancer**: Otomatis terisi `Libur` di hari **Minggu** (hari Sabtu tetap hari kerja biasa).
+  - Kolom ringkasan total di sisi kanan: `Hadir`, `Telat`, `Cuti`, `Libur`, dan `Alpa`.
+
+### Solusi & Perubahan Teknis
+1. **`resources/views/exports/attendance-report-matrix.blade.php`**:
+   - Template Blade HTML Table lengkap dengan hirarki header 3 tingkat:
+     - Header Grup Minggu (`colspan`).
+     - Header Tanggal (`colspan="2"` per tanggal).
+     - Sub-Header `Masuk` dan `Keluar`.
+   - Menambahkan pewarnaan kontekstual (late teks merah, libur latar abu-abu, cuti latar biru muda, total rekapitulasi aksen hijau).
+2. **`app/Exports/AttendanceReportExport.php`**:
+   - Dirombak menjadi implementasi `FromView`, `ShouldAutoSize`, `WithStyles`, dan `WithTitle`.
+   - Memetakan tanggal dinamis ke dalam grup minggu kalender (berakhir di hari Minggu atau tanggal akhir filter).
+   - Mengelompokkan kehadiran per individu dan menghitung rekapitulasi status secara akurat.
+   - Mengintegrasikan pengecekan hari libur nasional (`Holiday`) serta aturan libur akhir pekan intern (Sabtu & Minggu) vs employee (Minggu).
+3. **`app/Filament/Pages/LaporanAbsensi.php`**:
+   - Menambahkan filter dropdown baru `worker_type` (`Karyawan`, `Magang`, `Freelancer`) pada form filter laporan absensi.
+   - Mengaplikasikan filter tipe pekerja pada query laporan di `getReportQuery()` sehingga hasil tabel maupun export Excel terisolasi dan tidak tercampur.
+   - Memperbarui `exportExcel()` agar menyuplai rentang tanggal filter, nama Badan Usaha/Divisi, serta `worker_type` ke `AttendanceReportExport`.
+4. **Penyederhanaan Kolom Spreadsheet (`attendance-report-matrix.blade.php`)**:
+   - Menghilangkan kolom `Divisi`, `NIP / ID`, dan `Tipe` pada template spreadsheet Excel.
+   - Kolom identitas awal disederhanakan murni menjadi `No` dan `Nama Karyawan`, diikuti tanggal-tanggal horizontal membentang ke kanan.
+5. **`tests/Feature/ReportExportTest.php`**:
+   - Menambahkan pengujian `test_export_excel_returns_valid_download_response` untuk memvalidasi response download berkas Excel.
+   - Menambahkan pengujian `test_attendance_report_export_applies_correct_weekend_rules_for_employee_and_intern` untuk memvalidasi aturan libur otomatis Sabtu-Minggu magang dan Minggu karyawan serta pemetaan jam masuk/keluar.
+   - Menambahkan pengujian `test_laporan_absensi_can_filter_by_worker_type` untuk memastikan filter `worker_type` mengisolasi data secara akurat dan header spreadsheet tidak lagi memuat kolom NIP maupun Divisi.
+   - Menambahkan pengujian `test_attendance_report_export_does_not_create_phantom_columns` untuk memastikan tidak ada kolom phantom atau border tabel kosong yang membentang setelah kolom TOTAL REKAP.
+
+### Perbaikan Masalah Kolom Kosong Setelah Rekap
+- **Penyebab**: Pemanggilan `$sheet->getStyle('A:ZZ')` pada method `styles()` menyebabkan PhpSpreadsheet menginstansiasi sel hingga kolom `ZZ` (702 kolom), sehingga `$sheet->getHighestColumn()` bernilai `ZZ` dan border tabel digambar pada ratusan sel kosong di sebelah kanan tabel TOTAL REKAP.
+- **Solusi**: Menghapus `$sheet->getStyle('A:ZZ')`, menerapkan font Arial secara global pada default style workbook (`$sheet->getParent()?->getDefaultStyle()->getFont()`), dan membatasi styling serta border tabel hanya sampai kolom riil akhir rekap (`$lastCol` dihitung via `Coordinate::stringFromColumnIndex`).
+
+### Transisi ke Format Rekap Bulanan Penuh
+- **Permintaan Pengguna**: Mengubah format rekap yang sebelumnya dipecah per minggu menjadi rekapitulasi per bulan penuh.
+- **Implementasi**:
+  - Mengubah hirarki header di `attendance-report-matrix.blade.php` dan `AttendanceReportExport.php` dari grup mingguan (`Minggu 1, Minggu 2`) menjadi header grup bulanan (misal `SEPTEMBER 2026`).
+  - Label tanggal di bawah header bulan disederhanakan menjadi format hari `01 (Sen)`, `02 (Sel)`, `03 (Rab)` s/d akhir bulan (`30`/`31`).
+  - Menyesuaikan nilai default filter di `LaporanAbsensi.php` agar mencakup 1 bulan penuh secara otomatis (`startOfMonth` s/d `endOfMonth`).
+  - Judul sheet dan laporan disesuaikan menjadi `REKAPITULASI ABSENSI BULANAN {TIPE}`.
+
+### Penyederhanaan Warna Spreadsheet (Natural & Minimalis)
+- **Permintaan Pengguna**: Mengubah palet warna yang terlalu ramai/mencolok menjadi warna natural, simpel, bersih, dan tidak berlebihan (*over*).
+- **Implementasi**:
+  - Mengeliminasi warna-warna kontras tinggi (navy pekat `#0F172A`, hijau tua `#047857`, merah terang `#DC2626`, dan biru terang `#2563EB`).
+  - Mengganti header tabel dengan warna netral abu-abu terang yang elegan (`#E5E7EB` dan `#F3F4F6`) serta teks charcoal gelap `#111827`.
+  - Mengganti latar belakang sel data menjadi putih bersih `#FFFFFF` dengan aksen abu-abu sangat lembut `#F9FAFB` untuk hari libur/akhir pekan dan kolom rekapitulasi.
+  - Border tabel menggunakan garis abu-abu tipis netral `#D1D5DB` dan `#E5E7EB`.
+
+### Pewarnaan Basic Indikator Status (Hadir, Telat, Alpha)
+- **Permintaan Pengguna**: Menerapkan warna dasar yang simpel dan tidak over: Hijau (Ijo) untuk Hadir, Kuning untuk Telat, dan Merah untuk Alpha/Alpa.
+- **Implementasi**:
+  - **Hadir (Ijo)**:
+    - Header dan sel total rekap menggunakan latar hijau lembut (`#DCFCE7` / `#F0FDF4`) dengan teks hijau tebal (`#166534`).
+    - Jam presensi hadir tepat waktu di sel harian menggunakan teks hijau (`#166534`).
+  - **Telat (Kuning)**:
+    - Header dan sel total rekap menggunakan latar kuning lembut (`#FEF9C3` / `#FEFCE8`) dengan teks kuning tua/amber tebal (`#854D0E`).
+    - Sel presensi harian saat terlambat diberi sorotan lembut kuning (`#FEF9C3`) dengan teks `#854D0E`.
+  - **Alpha / Alpa (Merah)**:
+    - Header dan sel total rekap menggunakan latar merah lembut (`#FEE2E2` / `#FEF2F2`) dengan teks merah tebal (`#991B1B`).
+    - Tanda tidak hadir pada hari kerja (`-`) diberi aksen teks merah (`#DC2626`).
+  - Kolom **Cuti** dan **Libur** tetap menggunakan latar netral lembut (`#F9FAFB`) agar komposisi warna tetap seimbang, bersih, dan profesional.
+
+### Fitur Dynamic Searchable pada Filter Opsi (> 5 Opsi)
+- **Permintaan Pengguna**: Mengaktifkan pencarian otomatis (*searchable*) pada input select filter jika jumlah opsinya melebihi 5 pilihan, sehingga pengguna dapat mengetik pencarian dan tidak perlu repot scroll mencari satu per satu saat data banyak.
+- **Implementasi**:
+  - Menambahkan closure dinamis `->searchable(fn (Select $component): bool => count($component->getOptions()) > 5)` pada komponen select:
+    - `worker_type` (3 opsi: Karyawan, Magang, Freelancer) -> tetap dropdown biasa tanpa search box (karena <= 5 opsi).
+    - `company_id` (Badan Usaha) -> otomatis memunculkan search box bila badan usaha > 5 opsi.
+    - `division_id` (Divisi) -> otomatis memunculkan search box bila divisi > 5 opsi.
+  - Menambahkan unit/feature test `test_select_is_searchable_only_when_options_exceed_five` di `ReportExportTest.php` untuk memvalidasi evaluasi dinamis ini.
+
+### Hasil Pengujian & Verifikasi
+- ✅ `tests/Feature/ReportExportTest.php`: Passed (7 passed, 32 assertions).
+- ✅ `vendor/bin/pint --dirty --format agent`: Formatted cleanly.
+
+---
+
+## 🔍 FASE 25: Penerapan Global Dynamic Searchable Filter (> 5 Opsi) di Seluruh Resource & Halaman Filament
+
+**Tanggal**: 2026-09-10
+
+### Latar Belakang & Permintaan Pengguna
+- Pengguna meminta agar fitur filter pencarian (*searchable*) tidak hanya diterapkan pada halaman Export Laporan Absensi saja, melainkan di seluruh tabel dan halaman yang memiliki fitur filtering di mana jumlah opsi pilihannya melebihi 5 opsi (*"jangan cuma filtering di export doang tapi cari juga di yang lain"* & *"buat saat filtering yang opsinya lebih dari 5 maka bisa search opsi nya jangan cuma milih doang kalau kebanyakan kan jadi ribet"*).
+- Bila opsi sedikit ($\le 5$), dropdown tetap ringkas tanpa kolom input pencarian agar tidak membebani tampilan.
+
+### Solusi & Perubahan Teknis
+1. **`app/Filament/Resources/EmployeeResource.php`**:
+   - `company_id` (Badan Usaha): `->searchable(fn (): bool => Company::count() > 5)->preload()`
+   - `division_id` (Divisi): `->searchable(fn (): bool => Division::count() > 5)->preload()`
+   - `job_level_id` (Level Jabatan): `->searchable(fn (): bool => JobLevel::count() > 5)->preload()`
+   - `status`: `->searchable(fn (SelectFilter $f): bool => count($f->getOptions()) > 5)` (2 opsi $\le 5$, tetap non-searchable).
+2. **`app/Filament/Resources/FreelanceResource.php`**:
+   - `company_id`: `->searchable(fn (): bool => Company::count() > 5)->preload()`
+   - `division_id`: `->searchable(fn (): bool => Division::count() > 5)->preload()`
+   - `supervisor_id`: `->searchable(fn (): bool => Employee::count() > 5)->preload()`
+   - `status`: `->searchable(fn (SelectFilter $f): bool => count($f->getOptions()) > 5)` (4 opsi $\le 5$, tetap non-searchable).
+3. **`app/Filament/Resources/InternResource.php`**:
+   - `company_id`: `->searchable(fn (): bool => Company::count() > 5)->preload()`
+   - `division_id`: `->searchable(fn (): bool => Division::count() > 5)->preload()`
+   - `mentor_id`: `->searchable(fn (): bool => Employee::count() > 5)->preload()`
+   - `status`: `->searchable(fn (SelectFilter $f): bool => count($f->getOptions()) > 5)` (4 opsi $\le 5$, tetap non-searchable).
+4. **`app/Filament/Resources/ApproverResource.php`**:
+   - `company_id`: `->searchable(fn (): bool => Company::count() > 5)->preload()`
+   - `division_id`: `->searchable(fn (): bool => Division::count() > 5)->preload()`
+5. **`app/Filament/Resources/Attendances/AttendanceResource.php`**:
+   - `worker_type`: `->searchable(fn (SelectFilter $f): bool => count($f->getOptions()) > 5)` (3 opsi $\le 5$, tetap non-searchable).
+   - `status`: `->searchable(fn (SelectFilter $f): bool => count($f->getOptions()) > 5)` (`AttendanceStatus` memiliki 8 opsi $> 5$, otomatis searchable).
+   - `company`: `->searchable(fn (): bool => Company::count() > 5)->preload()`
+6. **`app/Filament/Resources/CompanyLocationResource.php`**:
+   - `company_id`: `->searchable(fn (): bool => Company::count() > 5)->preload()`
+7. **`app/Filament/Resources/DivisionResource.php`**:
+   - `company_id`: `->searchable(fn (): bool => Company::count() > 5)->preload()`
+8. **`app/Filament/Resources/JobTitleResource.php`**:
+   - `division_id`: `->searchable(fn (): bool => Division::count() > 5)->preload()`
+9. **`app/Filament/Resources/ResignationResource.php`**:
+   - Menambahkan filter `employee_id` (Karyawan): `->searchable(fn (): bool => Employee::count() > 5)->preload()`
+   - `status`: `->searchable(fn (SelectFilter $f): bool => count($f->getOptions()) > 5)` (3 opsi $\le 5$, non-searchable).
+10. **`app/Filament/Pages/KalenderCuti.php`**:
+    - `selectedMonth`: `->searchable(fn (Select $component): bool => count($component->getOptions()) > 5)` (12 opsi $> 5$, otomatis searchable).
+    - `selectedYear`: `->searchable(fn (Select $component): bool => count($component->getOptions()) > 5)` (3 opsi $\le 5$, non-searchable).
+    - `selectedCompanyId`: `->searchable(fn (Select $component): bool => count($component->getOptions()) > 5)`
+11. **`tests/Feature/FilterSearchabilityTest.php`**:
+    - Membuat automated test suite khusus untuk memverifikasi fungsionalitas searchability dinamis pada seluruh filter di atas.
+    - Menguji skenario saat data $\le 5$ (pencarian non-aktif) dan saat data $> 5$ (pencarian otomatis aktif).
+
+### Hasil Pengujian & Verifikasi
+- ✅ `tests/Feature/FilterSearchabilityTest.php`: **Passed (5 passed, 39 assertions)**.
+- ✅ `tests/Feature/ReportExportTest.php`: **Passed (7 passed, 32 assertions)**.
+- ✅ `tests/Feature/KalenderCutiTest.php`: **Passed (1 passed, 2 assertions)**.
+- ✅ `tests/Feature/ApproverResourceTest.php`: **Passed (3 passed, 7 assertions)**.
+- ✅ `tests/Feature/FreelanceResourceTest.php`: **Passed (3 passed, 18 assertions)**.
+- ✅ `tests/Feature/InternResourceTest.php`: **Passed (5 passed, 18 assertions)**.
+- ✅ `tests/Feature/ResignationTest.php`: **Passed (5 passed, 10 assertions)**.
+- ✅ `vendor/bin/pint --dirty --format agent`: Formatted cleanly.
+
+---
+
+## ⚡ FASE 26: Perbaikan Vite Build (Isolasi Konfigurasi PostCSS Scope & Non-Aktifkan Fontaine Warning)
+
+**Tanggal**: 2026-09-10
+
+### Masalah
+- Eksekusi `npm run build` mengalami kegagalan (*exit code 1*) dengan pesan error:
+  `Failed to load PostCSS config: Failed to load PostCSS config (searchPath: C:/Users/AHTAR/filament-ontime): [Error] Loading PostCSS Plugin failed: Cannot find module 'autoprefixer'`
+  `Require stack: - C:\Users\AHTAR\postcss.config.mjs`
+- **Penyebab**: Proyek ini menggunakan **Tailwind CSS v4** via plugin `@tailwindcss/vite` murni (tanpa dependensi PostCSS / `autoprefixer`). Namun, saat memproses stylesheet tema (`vendor/kungfufafa/mekaya-theme/resources/css/theme.css`), Vite melakukan penelusuran ke atas direktori (*upward traversal*) dan menemukan file `C:\Users\AHTAR\postcss.config.mjs` di luar folder proyek yang memanggil `autoprefixer`.
+
+### Solusi & Perubahan Teknis
+1. **[vite.config.js](file:///c:/Users/AHTAR/filament-ontime/vite.config.js)**:
+   - Menambahkan konfigurasi inline `css: { postcss: { plugins: [] } }` sehingga Vite mengisolasi PostCSS di tingkat proyek dan berhenti memindai file konfigurasi eksternal di folder pengguna (`C:\Users\AHTAR\`).
+   - Menambahkan `optimizedFallbacks: false` pada konfigurasi font Bunny `Instrument Sans` untuk mengeliminasi *warning* paket opsional `fontaine`.
+
+### Hasil Pengujian & Verifikasi
+---
+
+## 🎨 FASE 27: Perbaikan Bug Search Bar Filtering Dropdown & Pemulihan Tema Dark Mode
+
+**Tanggal**: 2026-09-10
+
+### Masalah
+- Pengguna melaporkan bahwa *search bar* pada dropdown filtering mengalami bug tampilan (*"search bar di filtering nya ngebug"*).
+- Dari tangkapan layar, search input di bagian atas panel dropdown mengalami scroll-off / terpotong (hanya menyisakan 14px sliver tipis). Selain itu, di dark mode search input tidak memiliki styling kotak input, border, atau icon pencarian, serta warna teks input tidak kontras.
+- Pengguna juga meminta agar warna dikembalikan seperti semula (*"kembalikan warnanya seperti tadi"*), di mana pengujian subagent sebelumnya sempat mengganti tema ke Light Mode dan memberikan outline focus yang terlalu mencolok.
+
+### Solusi & Perubahan Teknis
+1. **[resources/css/app.css](file:///c:/Users/AHTAR/filament-ontime/resources/css/app.css) & [forms.css](file:///c:/Users/AHTAR/filament-ontime/vendor/kungfufafa/mekaya-theme/resources/css/components/forms.css)**:
+   - Menambahkan styling khusus untuk `.fi-select-input .fi-select-input-search-ctn`:
+     - `position: sticky; top: 0; z-index: 30;` dengan padding proporsional (`0.5rem 0.625rem`) dan pemisah border bawah yang halus agar input pencarian selalu berada kokoh di bagian atas panel dropdown dan tidak tertimpa/tergulung oleh opsi list.
+     - Background disesuaikan secara dinamis untuk Light Mode (`#ffffff`) dan Dark Mode (`#18181b`).
+   - Menata ulang elemen `.fi-select-input-search-ctn input`:
+     - Tinggi proporsional `2.25rem` (`36px`), sudut membulat `rounded-lg` (`0.5rem`), background netral, dan ikon *Magnifying Glass* SVG di sisi kiri dengan padding yang rapi.
+     - Warna teks diatur kontras: teks gelap di Light Mode dan teks putih murni di Dark Mode.
+     - State focus dibuat halus dan natural (ring 1px subtle dengan warna amber khas tema OnTime tanpa efek glow yang berlebihan).
+2. **Pembersihan Injeksi Stylesheet Ekstra**:
+   - Menghapus injeksi `resources/css/app.css` dari `AdminPanelProvider.php` yang sebelumnya sempat memicu benturan styling preflight Tailwind.
+   - Styling perbaikan search bar dropdown sepenuhnya diintegrasikan secara bersih dan native ke dalam tema Mekaya tanpa mengganggu palet warna tema bawaan.
+3. **Pemulihan Tema Browser**:
+   - Memastikan tema tampilan aplikasi di browser dikembalikan sepenuhnya ke **Dark Mode** murni seperti semula.
+
+### Hasil Pengujian & Verifikasi
+- ✅ `npm run build`: Berhasil mengompilasi seluruh asset dalam 2.51s.
+- ✅ `php artisan test --compact --filter=FilterSearchabilityTest`: **5 passed (39 assertions)**.
+- ✅ `vendor/bin/pint --format agent`: Formatted cleanly.
+- ✅ Verifikasi UI di Browser: Tampilan search bar dropdown pada tabel filter rapi, teks terlihat jelas, ikon pencarian tampil estetik, dan tema kembali ke Dark Mode murni tanpa efek glow biru.
+
+
+
+
+
+
+
+
+
+
+

@@ -10,6 +10,7 @@ use App\Models\Company;
 use App\Models\CompanyPolicy;
 use App\Models\Division;
 use BackedEnum;
+use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -57,7 +58,8 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
     {
         $this->form->fill([
             'date_from' => now()->startOfMonth()->toDateString(),
-            'date_to' => today()->toDateString(),
+            'date_to' => now()->endOfMonth()->toDateString(),
+            'worker_type' => null,
         ]);
     }
 
@@ -87,7 +89,7 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
             ->components([
                 Section::make('Filter Laporan')
                     ->schema([
-                        Grid::make(4)->schema([
+                        Grid::make(5)->schema([
                             DatePicker::make('date_from')
                                 ->label('Dari Tanggal')
                                 ->required()
@@ -97,6 +99,17 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
                                 ->label('Sampai Tanggal')
                                 ->required()
                                 ->live(),
+
+                            Select::make('worker_type')
+                                ->label('Tipe Peserta')
+                                ->options([
+                                    'employee' => 'Karyawan',
+                                    'intern' => 'Magang',
+                                    'freelancer' => 'Freelancer',
+                                ])
+                                ->searchable(fn (Select $component): bool => count($component->getOptions()) > 5)
+                                ->live()
+                                ->placeholder('Semua Tipe'),
 
                             Select::make('company_id')
                                 ->label('Badan Usaha')
@@ -111,6 +124,7 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
 
                                     return $query->pluck('name', 'id');
                                 })
+                                ->searchable(fn (Select $component): bool => count($component->getOptions()) > 5)
                                 ->live()
                                 ->placeholder('Semua Company'),
 
@@ -130,6 +144,7 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
 
                                     return $query->pluck('name', 'id');
                                 })
+                                ->searchable(fn (Select $component): bool => count($component->getOptions()) > 5)
                                 ->live()
                                 ->placeholder('Semua Divisi'),
                         ]),
@@ -242,6 +257,15 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
                     ->orWhereHas('intern', fn ($s) => $s->where('division_id', $did))
                     ->orWhereHas('freelancer', fn ($s) => $s->where('division_id', $did));
             });
+        }
+        if (! empty($data['worker_type'])) {
+            if ($data['worker_type'] === 'employee') {
+                $query->whereNotNull('employee_id');
+            } elseif ($data['worker_type'] === 'intern') {
+                $query->whereNotNull('intern_id');
+            } elseif ($data['worker_type'] === 'freelancer') {
+                $query->whereNotNull('freelancer_id');
+            }
         }
 
         return $query->orderBy('date', 'desc');
@@ -428,7 +452,23 @@ class LaporanAbsensi extends Page implements HasForms, HasTable
     public function exportExcel(): BinaryFileResponse
     {
         $records = $this->getReportDataProperty();
+        $dateFrom = ! empty($this->filterData['date_from']) ? Carbon::parse($this->filterData['date_from']) : null;
+        $dateTo = ! empty($this->filterData['date_to']) ? Carbon::parse($this->filterData['date_to']) : null;
+        $workerType = ! empty($this->filterData['worker_type']) ? $this->filterData['worker_type'] : null;
 
-        return Excel::download(new AttendanceReportExport($records), 'laporan-rekap-absensi.xlsx');
+        $companyName = null;
+        if (! empty($this->filterData['company_id'])) {
+            $companyName = Company::find($this->filterData['company_id'])?->name;
+        }
+
+        $divisionName = null;
+        if (! empty($this->filterData['division_id'])) {
+            $divisionName = Division::find($this->filterData['division_id'])?->name;
+        }
+
+        return Excel::download(
+            new AttendanceReportExport($records, $dateFrom, $dateTo, $companyName, $divisionName, $workerType),
+            'laporan-rekap-absensi.xlsx'
+        );
     }
 }

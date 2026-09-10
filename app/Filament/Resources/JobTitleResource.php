@@ -103,7 +103,9 @@ class JobTitleResource extends Resource
 
                             return [$division->id => "{$companyName} - {$division->name}"];
                         });
-                    }),
+                    })
+                    ->searchable(fn (): bool => Division::count() > 5)
+                    ->preload(),
             ])
             ->actions([
                 EditAction::make(),
